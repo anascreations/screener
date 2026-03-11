@@ -18,10 +18,16 @@ spring:
     name: screener-service
 
   datasource:
-    url: jdbc:h2:file:./data/screener-db
+    # Absolute path — avoids writing to unpredictable working directory.
+    # /app/data is created in Dockerfile with correct permissions.
+    # NOTE: Render free tier has ephemeral storage — data is wiped on redeploy.
+    url: jdbc:h2:file:/app/data/screener-db;AUTO_SERVER=FALSE
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 20000
 
   jpa:
     hibernate:
@@ -31,22 +37,21 @@ spring:
 
   h2:
     console:
-      enabled: true
+      # Disable in production — H2 console has no auth by default
+      enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
 
   threads:
     virtual:
       enabled: true
 
-  # ── Thymeleaf ─────────────────────────────────────────────────────────────
   thymeleaf:
     prefix: classpath:/templates/
     suffix: .html
-    cache: true          # set true in production
+    cache: true
     encoding: UTF-8
     mode: HTML
 
-  # ── Multipart (Level-2 image upload) ─────────────────────────────────────
   servlet:
     multipart:
       enabled: true
@@ -54,8 +59,11 @@ spring:
       max-request-size: 10MB
 
 screener:
+  # Reads SCREENER_BASE_URL env var — set this in Render dashboard to your
+  # actual service URL: https://your-app-name.onrender.com
+  # Falls back to localhost for local development.
   api:
-    base-url: http://localhost:8080   # WebClient target — change if API is on separate host
+    base-url: ${SCREENER_BASE_URL:http://localhost:8080}
 
   min-score: 65
   min-volume-ratio: 1.3
@@ -79,6 +87,15 @@ screener:
       delay-min-ms: 600
       delay-max-ms: 1400
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 logging:
   level:
     root: INFO
@@ -90,7 +107,7 @@ logging:
     name: ${LOG_PATH:/app/logs}/screener-service.log
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file:    "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   logback:
     rollingpolicy:
       max-file-size: 100MB
