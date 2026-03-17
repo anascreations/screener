@@ -26,6 +26,7 @@ public class AnalysisService {
 	private final MarketIndexService indexService;
 	private final ScanResultRepository repository;
 	private final TradingCalendarService calendarService;
+	private final Map<Market, SessionProvider> sessionMap;
 	@Value("${screener.min-score:65}")
 	private double minScore;
 	@Value("${screener.min-volume-ratio:1.3}")
@@ -46,6 +47,7 @@ public class AnalysisService {
 	private static final double SCALP_ATR_PCT = 1.5;
 	private static final double SCALP_RSI_MIN = 42.0;
 	private static final double SCALP_RSI_MAX = 67.0;
+	private static final int MAX_RETRIES = 3;
 
 	public AnalysisService(ExchangeMyService myExchange, ExchangeUsService usExchange,
 			IndicatorService indicatorService, MarketIndexService indexService, ScanResultRepository repository,
@@ -55,10 +57,23 @@ public class AnalysisService {
 		this.indexService = indexService;
 		this.repository = repository;
 		this.calendarService = calendarService;
+		this.sessionMap = Map.of(Market.MY, (SessionProvider) myExchange, Market.US, (SessionProvider) usExchange);
 	}
 
 	public Optional<ScanResult> scan(Market market, String code) {
 		log.info("──────────────────────────────────────────────────");
+		String ticker = market == Market.MY ? code.trim().toUpperCase() + ".KL" : code.trim().toUpperCase();
+		SessionProvider session = sessionMap.get(market);
+		for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+			String cookie = session.getSessionCookie();
+			String crumb = session.getCrumb();
+			if (cookie == null || crumb == null) {
+				log.warn("[FUND] No valid Yahoo session for {} (attempt {}/{})", ticker, attempt, MAX_RETRIES);
+				session.forceRefresh();
+				sleep(2000L * attempt);
+				continue;
+			}
+		}
 		log.info("[{}] ANALYZE: {}", market, market.fullTicker(code));
 		List<DailyBar> bars = exchangeMap.get(market).fetchHistory(code);
 		if (bars.isEmpty()) {
@@ -168,6 +183,14 @@ public class AnalysisService {
 		}
 		logDecision(market, result, tradeDate);
 		return Optional.of(result);
+	}
+
+	private void sleep(long ms) {
+		try {
+			Thread.sleep(ms);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	private MacdCrossState evaluateMacdCross(String code, Map<String, Double> ind) {
