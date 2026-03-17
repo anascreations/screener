@@ -29,7 +29,6 @@ import reactor.netty.resources.ConnectionProvider;
 @Slf4j
 @Configuration
 public class WebClientConfig {
-
 	@Bean
 	ConnectionProvider yahooConnectionPool() {
 		return ConnectionProvider.builder("yahoo-pool").maxConnections(5).pendingAcquireMaxCount(10)

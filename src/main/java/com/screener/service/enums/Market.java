@@ -5,16 +5,6 @@ import java.time.ZoneId;
 
 import com.screener.service.util.DateUtil;
 
-/**
- * All market-specific configuration lives here. Adding a new market = adding
- * one enum constant + overriding the abstract methods.
- *
- * Key design: - tick() — price rounding to exchange-legal increments -
- * bbHeadroom() — distance to BB upper expressed in native units (MY = absolute
- * sen; US = % of price) - bbHeadroomScore/Warn — scoring thresholds translated
- * to that unit - nextTradingDay — MY uses TradingCalendarService; US uses
- * simple weekday skip
- */
 public enum Market {
 	MY(DateUtil.KL, "RM", ".KL", LocalTime.of(17, 30)) {
 		@Override
@@ -36,18 +26,18 @@ public enum Market {
 
 		@Override
 		public double bbHeadroom(double bbUpper, double close) {
-			return (bbUpper - close) * 100; // sen
+			return (bbUpper - close) * 100;
 		}
 
 		@Override
 		public double bbLittleRoomThreshold() {
 			return 2.0;
-		} // sen
+		}
 
 		@Override
 		public double bbLimitedRoomThreshold() {
 			return 5.0;
-		} // sen
+		}
 
 		@Override
 		public String formatPrice(double price) {
@@ -72,18 +62,18 @@ public enum Market {
 
 		@Override
 		public double bbHeadroom(double bbUpper, double close) {
-			return bbUpper > 0 ? (bbUpper - close) / close * 100 : 5.0; // percent
+			return bbUpper > 0 ? (bbUpper - close) / close * 100 : 5.0;
 		}
 
 		@Override
 		public double bbLittleRoomThreshold() {
 			return 0.5;
-		} // %
+		}
 
 		@Override
 		public double bbLimitedRoomThreshold() {
 			return 1.5;
-		} // %
+		}
 
 		@Override
 		public String formatPrice(double price) {
@@ -101,11 +91,10 @@ public enum Market {
 		}
 	};
 
-	// ── Fields ───────────────────────────────────────────────────────────────
 	public final ZoneId zoneId;
 	public final String currency;
-	public final String tickerSuffix; // ".KL" for MY, "" for US
-	public final LocalTime eodFinal; // after this time today's bar is confirmed EOD
+	public final String tickerSuffix;
+	public final LocalTime eodFinal;
 
 	Market(String zone, String currency, String tickerSuffix, LocalTime eodFinal) {
 		this.zoneId = ZoneId.of(zone);
@@ -114,7 +103,6 @@ public enum Market {
 		this.eodFinal = eodFinal;
 	}
 
-	// ── Abstract methods every market must implement ──────────────────────────
 	public abstract double tick(double price);
 
 	public abstract double bbHeadroom(double bbUpper, double close);
@@ -129,7 +117,6 @@ public enum Market {
 
 	public abstract String formatHeadroom(double h);
 
-	// ── Helpers ───────────────────────────────────────────────────────────────
 	public String fullTicker(String code) {
 		return code.toUpperCase() + tickerSuffix;
 	}

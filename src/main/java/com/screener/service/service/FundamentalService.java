@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.screener.service.enums.Market;
+import com.screener.service.util.ThreadUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -91,7 +92,7 @@ public class FundamentalService {
 		String ticker = market == Market.MY ? code.trim().toUpperCase() + ".KL" : code.trim().toUpperCase();
 		log.info("[FUND] Analyzing fundamentals: {}", ticker);
 		try {
-			sleep(ThreadLocalRandom.current().nextLong(300, 700)); // polite delay
+			ThreadUtil.sleep(ThreadLocalRandom.current().nextLong(300, 700)); // polite delay
 			JsonNode root = fetch(market, ticker);
 			if (root == null) {
 				return FundamentalResult.error(code, "Could not fetch data from Yahoo Finance for " + ticker);
@@ -602,7 +603,7 @@ public class FundamentalService {
 			if (cookie == null || crumb == null) {
 				log.warn("[FUND] No valid Yahoo session for {} (attempt {}/{})", ticker, attempt, MAX_RETRIES);
 				session.forceRefresh();
-				sleep(2000L * attempt);
+				ThreadUtil.sleep(2000L * attempt);
 				continue;
 			}
 			String url = String.format(BASE_URL, URLEncoder.encode(ticker, StandardCharsets.UTF_8),
@@ -621,15 +622,14 @@ public class FundamentalService {
 				log.warn("[FUND] {} auth error ({}), refreshing session (attempt {}/{})", ticker, status, attempt,
 						MAX_RETRIES);
 				session.forceRefresh();
-				sleep(2000L * attempt);
+				ThreadUtil.sleep(2000L * attempt);
 				continue;
 			}
 			if (status != 200) {
 				log.warn("[FUND] HTTP {} for {} (attempt {}/{})", status, ticker, attempt, MAX_RETRIES);
-				sleep(1500L * attempt);
+				ThreadUtil.sleep(1500L * attempt);
 				continue;
 			}
-			// Check for crumb error in JSON body (Yahoo returns 200 with error payload)
 			JsonNode root = json.readTree(resp.body());
 			JsonNode error = root.path("quoteSummary").path("error");
 			if (!error.isNull()) {
@@ -639,7 +639,7 @@ public class FundamentalService {
 					log.warn("[FUND] Invalid crumb for {} — refreshing session (attempt {}/{})", ticker, attempt,
 							MAX_RETRIES);
 					session.forceRefresh();
-					sleep(2000L * attempt);
+					ThreadUtil.sleep(2000L * attempt);
 					continue;
 				}
 				if (code.equals("Not Found") || desc.contains("No fundamentals")) {
@@ -654,14 +654,6 @@ public class FundamentalService {
 		}
 		log.error("[FUND] {} — all {} attempts failed", ticker, MAX_RETRIES);
 		return null;
-	}
-
-	private void sleep(long ms) {
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
 	}
 
 	private String fmtPct(double v) {

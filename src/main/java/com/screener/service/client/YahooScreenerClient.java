@@ -10,7 +10,6 @@ import com.screener.service.constants.Constants;
 
 @HttpExchange(url = Constants.QUERY2_FINANCE_YAHOO_URL, contentType = "application/json", accept = "application/json")
 public interface YahooScreenerClient {
-
 	@PostExchange("/v1/finance/screener")
 	String screen(@RequestParam String corsDomain, @RequestParam String formatted, @RequestParam String lang,
 			@RequestParam String region, @RequestParam String crumb, @RequestHeader("User-Agent") String userAgent,

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.screener.service.enums.Market;
 import com.screener.service.model.ScanResult;
 import com.screener.service.model.StockCandidate;
+import com.screener.service.util.ThreadUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -97,7 +98,7 @@ public class ScannerService {
 					failCount.incrementAndGet();
 					return Optional.<ScanResult>empty();
 				} finally {
-					sleep(delayBetweenMs);
+					ThreadUtil.sleep(delayBetweenMs);
 					throttle.release();
 					int n = done.incrementAndGet();
 					if (n % 20 == 0 || n == total)
@@ -186,13 +187,4 @@ public class ScannerService {
 		return d;
 	}
 
-	private void sleep(long ms) {
-		if (ms <= 0)
-			return;
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
-	}
 }

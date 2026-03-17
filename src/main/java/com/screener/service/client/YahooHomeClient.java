@@ -9,7 +9,6 @@ import com.screener.service.constants.Constants;
 
 @HttpExchange(url = Constants.FINANCE_YAHOO_URL)
 public interface YahooHomeClient {
-
 	@GetExchange("/")
 	ResponseEntity<Void> getHome(@RequestHeader("User-Agent") String userAgent, @RequestHeader("Accept") String accept,
 			@RequestHeader("Accept-Language") String acceptLanguage);

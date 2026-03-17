@@ -15,11 +15,12 @@ import com.screener.service.model.DailyBar;
 import com.screener.service.model.ScanResult;
 import com.screener.service.repository.ScanResultRepository;
 import com.screener.service.service.MarketIndexService.IndexTrend;
+import com.screener.service.util.ThreadUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
-@Service
 @Slf4j
+@Service
 public class AnalysisService {
 	private final Map<Market, ExchangeService> exchangeMap;
 	private final IndicatorService indicatorService;
@@ -70,7 +71,7 @@ public class AnalysisService {
 			if (cookie == null || crumb == null) {
 				log.warn("[FUND] No valid Yahoo session for {} (attempt {}/{})", ticker, attempt, MAX_RETRIES);
 				session.forceRefresh();
-				sleep(2000L * attempt);
+				ThreadUtil.sleep(2000L * attempt);
 				continue;
 			}
 		}
@@ -183,14 +184,6 @@ public class AnalysisService {
 		}
 		logDecision(market, result, tradeDate);
 		return Optional.of(result);
-	}
-
-	private void sleep(long ms) {
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
 	}
 
 	private MacdCrossState evaluateMacdCross(String code, Map<String, Double> ind) {

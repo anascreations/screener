@@ -6,14 +6,18 @@ import java.util.Map;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.screener.service.client.ScreenerClient;
+import com.screener.service.dto.TrendDistanceRequest;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -129,6 +133,22 @@ public class UiController {
 		model.addAttribute("ema50", ema50);
 		model.addAttribute("ema200", ema200);
 		model.addAttribute("timeframe", timeframe);
+		return "index";
+	}
+
+	@PostMapping("ma/trend-distance")
+	public String trendDistance(@ModelAttribute @Valid TrendDistanceRequest request, BindingResult binding,
+			Model model) {
+		model.addAttribute("activeTab", "ma-trend-distance");
+		model.addAttribute("timeframe", request.getTimeframe());
+		model.addAttribute("marketPrice", request.getMarketPrice());
+		model.addAttribute("ma20", request.getMa20());
+		model.addAttribute("ma50", request.getMa50());
+		model.addAttribute("ticker", request.getTicker());
+		model.addAttribute("market", request.getMarket());
+		if (!binding.hasErrors()) {
+			model.addAttribute("result", screenerClient.trendDistance(request.getMarket(), request));
+		}
 		return "index";
 	}
 

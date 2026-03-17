@@ -26,8 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.screener.service.dto.Level2Request;
+import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.PullbackRequest;
 import com.screener.service.dto.PullbackResult;
+import com.screener.service.dto.TrendDistanceRequest;
 import com.screener.service.enums.Market;
 import com.screener.service.model.ScanResult;
 import com.screener.service.repository.ScanResultRepository;
@@ -38,7 +40,9 @@ import com.screener.service.service.OcrService;
 import com.screener.service.service.PullbackService;
 import com.screener.service.service.ScannerService;
 import com.screener.service.service.TradingCalendarService;
+import com.screener.service.util.ThreadUtil;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -145,7 +149,7 @@ public class ScreenerController {
 		List<Map<String, Object>> results = new ArrayList<>();
 		int buy = 0, watch = 0, ignore = 0;
 		for (String code : codes) {
-			sleep(400);
+			ThreadUtil.sleep(400);
 			Optional<ScanResult> res = analysisService.scan(m, code);
 			if (res.isPresent()) {
 				ScanResult r = res.get();
@@ -533,103 +537,13 @@ public class ScreenerController {
 	}
 
 	@GetMapping("ma/calculation")
-	public ResponseEntity<Map<String, Object>> maCalculation(@RequestBody Map<String, Object> body) {
-		double marketPrice = ((Number) body.get("marketPrice")).doubleValue();
-		double ma5 = ((Number) body.get("ma5")).doubleValue();
-		double ma20 = ((Number) body.get("ma20")).doubleValue();
-		String timeframe = body.getOrDefault("timeframe", "DAILY").toString();
-		TimeframeConfig tf = TimeframeConfig.of(timeframe);
-		Map<String, Object> resp = new LinkedHashMap<>();
-		resp.put("input", Map.of("marketPrice", marketPrice, "ma5", ma5, "ma20", ma20, "timeframe", tf.label(),
-				"holdDuration", tf.holdDuration()));
-		if (marketPrice < ma20) {
-			resp.put("decision", "SKIP");
-			resp.put("emoji", "🚫");
-			resp.put("reason", String.format("Price (%.4f) is below MA20 (%.4f) — support broken. "
-					+ "MA20 must hold as support for this setup to be valid.", marketPrice, ma20));
-			resp.put("detail", Map.of("priceVsMA20", String.format("%.4f below MA20 (%.4f)", ma20 - marketPrice, ma20),
-					"note", "Price below MA20 = downtrend. Wait for price to reclaim MA20."));
-			return ResponseEntity.ok(resp);
-		}
-		if (ma5 < ma20) {
-			resp.put("decision", "SKIP");
-			resp.put("emoji", "🚫");
-			resp.put("reason", String.format("MA5 (%.4f) is below MA20 (%.4f) — golden cross has not occurred. "
-					+ "Short-term average must cross above long-term before entering.", ma5, ma20));
-			resp.put("detail",
-					Map.of("ma5AboveMA20", false, "gap",
-							String.format("MA5 is %.4f (%.2f%%) below MA20", ma20 - ma5, (ma20 - ma5) / ma20 * 100),
-							"note", "Wait for MA5 ≥ MA20 golden cross."));
-			return ResponseEntity.ok(resp);
-		}
-		double pctAboveMA20 = (marketPrice - ma20) / ma20 * 100;
-		double pctAboveMA5 = (marketPrice - ma5) / ma5 * 100;
-		double ma5AboveMA20 = (ma5 - ma20) / ma20 * 100;
-		String risk;
-		String riskEmoji;
-		String riskDecision;
-		String riskAdvice;
-		if (pctAboveMA20 > 10.0) {
-			risk = "High Risk";
-			riskEmoji = "🔴";
-			riskDecision = "SKIP";
-			riskAdvice = String.format(
-					"[%s] Price is %.2f%% above MA20 — overextended (> 10%%). "
-							+ "High probability of mean reversion back to MA20. Do NOT enter now. "
-							+ "Wait for price to pull back to MA5 (%.4f) or MA20 (%.4f) before re-evaluating.",
-					tf.label(), pctAboveMA20, ma5, ma20);
-		} else if (pctAboveMA20 >= 5.0) {
-			risk = "Medium Risk";
-			riskEmoji = "🟡";
-			riskDecision = "PROCEED";
-			riskAdvice = String.format(
-					"[%s] Price is %.2f%% above MA20 — medium-risk zone (5%%–10%%). "
-							+ "Still tradeable. Reduce position size by 30–50%%. "
-							+ "Ideal entry: wait for pullback to MA5 (%.4f). Expected hold: %s.",
-					tf.label(), pctAboveMA20, ma5, tf.holdDuration());
-		} else {
-			risk = "Low Risk";
-			riskEmoji = "🟢";
-			riskDecision = "PROCEED";
-			riskAdvice = String.format("[%s] Price is %.2f%% above MA20 — low-risk zone (≤ 5%%). "
-					+ "Price is close to MA20 support. Early entry, full position size allowed. "
-					+ "Expected hold: %s.", tf.label(), pctAboveMA20, tf.holdDuration());
-		}
-		resp.put("decision", riskDecision);
-		resp.put("emoji", riskEmoji);
-		resp.put("risk", risk);
-		resp.put("advice", riskAdvice);
-		resp.put("calculation",
-				Map.of("formula", "(marketPrice - MA20) / MA20 × 100", "pctAboveMA20",
-						String.format("%.2f%%", pctAboveMA20), "pctAboveMA5", String.format("%.2f%%", pctAboveMA5),
-						"ma5AboveMA20", String.format("%.2f%%", ma5AboveMA20), "result",
-						String.format("(%.4f - %.4f) / %.4f × 100 = %.2f%%", marketPrice, ma20, ma20, pctAboveMA20),
-						"thresholds", "≤5% = Low Risk PROCEED | 5–10% = Medium Risk PROCEED | >10% = High Risk SKIP"));
-		if ("SKIP".equals(riskDecision)) {
-			resp.put("maAlignment", Map.of("priceAboveMA5", true, "priceAboveMA20", true, "ma5AboveMA20", true, "trend",
-					"⚠️ Bullish but overextended — wait for pullback"));
-			return ResponseEntity.ok(resp);
-		}
-		double entryIdeal = round4(ma5);
-		double entryMax = round4(marketPrice);
-		double stopLoss = round4(ma20 * (1.0 - tf.slBuffer()));
-		double risk_R = entryIdeal - stopLoss;
-		double tp1 = round4(entryIdeal + risk_R * 1.0);
-		double tp2 = round4(entryIdeal + risk_R * 2.0);
-		double tp3 = round4(entryIdeal + risk_R * 3.5);
-		if (pctAboveMA5 <= 0.5) {
-			entryIdeal = round4(marketPrice);
-			risk_R = entryIdeal - stopLoss;
-			tp1 = round4(entryIdeal + risk_R * 1.0);
-			tp2 = round4(entryIdeal + risk_R * 2.0);
-			tp3 = round4(entryIdeal + risk_R * 3.5);
-		}
-		resp.put("maAlignment", Map.of("priceAboveMA5", true, "priceAboveMA20", true, "ma5AboveMA20", true, "trend",
-				"✅ Bullish — Price > MA5 > MA20"));
-		Map<String, Object> tradePlan = calculationPlan(marketPrice, ma20, tf, entryIdeal, entryMax, stopLoss, risk_R,
-				tp1, tp2, tp3);
-		resp.put("tradePlan", tradePlan);
-		return ResponseEntity.ok(resp);
+	public ResponseEntity<Map<String, Object>> maCalculation(@RequestBody @Valid MaCalculationRequest request) {
+		return ResponseEntity.ok(calcService.maCalculate(request));
+	}
+
+	@PostMapping("ma/trend-distance")
+	public ResponseEntity<Map<String, Object>> trendDistance(@RequestBody @Valid TrendDistanceRequest request) {
+		return ResponseEntity.ok(calcService.trendDistance(request));
 	}
 
 	@GetMapping("pullback")
@@ -982,11 +896,4 @@ public class ScreenerController {
 		return ResponseEntity.ok(resp);
 	}
 
-	private void sleep(long ms) {
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
-	}
 }

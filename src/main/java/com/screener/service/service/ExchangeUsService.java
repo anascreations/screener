@@ -26,39 +26,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.screener.service.client.YahooCrumbClient;
 import com.screener.service.client.YahooHomeClient;
 import com.screener.service.client.YahooScreenerClient;
+import com.screener.service.constants.Constants;
 import com.screener.service.enums.Market;
+import com.screener.service.exception.ExternalApiException;
+import com.screener.service.exception.NotFoundException;
+import com.screener.service.exception.RateLimitException;
+import com.screener.service.exception.ScreenerRateLimitException;
+import com.screener.service.exception.SessionExpiredException;
 import com.screener.service.model.DailyBar;
 import com.screener.service.model.StockCandidate;
+import com.screener.service.util.ThreadUtil;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
 public class ExchangeUsService implements ExchangeService, SessionProvider {
-
-	// ── constants ─────────────────────────────────────────────────────────────
-
-	public static final String NASDAQ = "NMS";
-	public static final String NYSE = "NYQ";
-	public static final String NASDAQ_CM = "NCM";
-	public static final String NYSE_MKT = "ASE";
-
-	private static final String[] USER_AGENTS = {
-			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
-			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-			"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36" };
-
-	private static final String FINANCE_HOME = "https://finance.yahoo.com";
 	private static final int PAGE_SIZE = 250;
 	private static final int MAX_PAGES = 8;
 	private static final long SESSION_TTL = 25 * 60 * 1000L;
 	private static final long COOLDOWN_MS = 25_000L;
 	private static final long SESSION_WARMUP_MS = 3_000L;
 	private static final long SCREENER_429_WAIT = 15_000L;
-
-	// ── config ────────────────────────────────────────────────────────────────
-
 	@Value("${screener.us.history-days:120}")
 	private int historyDays;
 	@Value("${screener.us.max-retries:3}")
@@ -67,26 +58,18 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 	private long delayMinMs;
 	@Value("${screener.us.delay-max-ms:1400}")
 	private long delayMaxMs;
-
-	// ── dependencies ──────────────────────────────────────────────────────────
-
 	private final YahooHomeClient homeClient;
 	private final YahooCrumbClient crumbClient;
 	private final YahooScreenerClient screenerClient;
 	private final WebClient chartClient;
 	private final ObjectMapper json = new ObjectMapper();
 	private final AtomicInteger uaIndex = new AtomicInteger(0);
-
-	// ── session state ─────────────────────────────────────────────────────────
-
 	private volatile long last429At = 0;
 	private volatile long screener429At = 0;
 	private volatile String sessionCookie;
 	private volatile String crumb;
 	private volatile long sessionAgeMs = 0;
 	private volatile long sessionFreshAt = 0;
-
-	// ── constructor ───────────────────────────────────────────────────────────
 
 	public ExchangeUsService(YahooHomeClient homeClient, YahooCrumbClient crumbClient,
 			YahooScreenerClient screenerClient, @Qualifier("yahooChartClient") WebClient chartClient) {
@@ -95,8 +78,6 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		this.screenerClient = screenerClient;
 		this.chartClient = chartClient;
 	}
-
-	// ── ExchangeService ───────────────────────────────────────────────────────
 
 	@Override
 	public Market getMarket() {
@@ -107,7 +88,6 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 	public List<DailyBar> fetchHistory(String symbol) {
 		String ticker = symbol.trim().toUpperCase();
 		throttleChartIfNeeded();
-
 		for (int attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
 				List<DailyBar> bars = callChartApi(ticker, attempt);
@@ -118,15 +98,15 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 				}
 			} catch (RateLimitException e) {
 				last429At = System.currentTimeMillis();
-				long wait = backoff(attempt);
+				long wait = ThreadUtil.backoff(attempt);
 				log.warn("[{}] 429 — cooldown {}s (attempt {}/{})", ticker, wait / 1000, attempt, maxRetries);
-				sleep(wait);
+				ThreadUtil.sleep(wait);
 			} catch (NotFoundException e) {
 				log.warn("[{}] Not found on Yahoo Finance", ticker);
 				return Collections.emptyList();
 			} catch (Exception e) {
 				log.warn("[{}] Attempt {}/{} failed: {}", ticker, attempt, maxRetries, e.getMessage());
-				sleep(backoff(attempt));
+				ThreadUtil.sleep(ThreadUtil.backoff(attempt));
 			}
 		}
 		log.error("[{}] All {} attempts failed", ticker, maxRetries);
@@ -142,11 +122,9 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		}
 		warmUpIfNeeded();
 		throttleScreenerIfNeeded();
-
 		List<String> exchanges = resolveExchanges(exchange);
 		List<StockCandidate> all = new CopyOnWriteArrayList<>();
 		int offset = 0;
-
 		for (int page = 0; page < MAX_PAGES; page++) {
 			try {
 				List<StockCandidate> pageResult = fetchScreenerPage(minPrice, maxPrice, exchanges, offset);
@@ -155,72 +133,57 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 				all.addAll(pageResult);
 				log.info("US screener page {}: +{} (total: {})", page + 1, pageResult.size(), all.size());
 				offset += PAGE_SIZE;
-				sleep(ThreadLocalRandom.current().nextLong(600, 1200));
-
+				ThreadUtil.sleep(ThreadLocalRandom.current().nextLong(600, 1200));
 			} catch (ScreenerRateLimitException e) {
 				screener429At = System.currentTimeMillis();
 				long wait = SCREENER_429_WAIT + ThreadLocalRandom.current().nextLong(2000, 5000);
 				log.warn("US screener 429 on page {} — cooling down {}s", page + 1, wait / 1000);
-				sleep(wait);
+				ThreadUtil.sleep(wait);
 				refreshSession();
-				sleep(SESSION_WARMUP_MS + ThreadLocalRandom.current().nextLong(1000, 2000));
+				ThreadUtil.sleep(SESSION_WARMUP_MS + ThreadLocalRandom.current().nextLong(1000, 2000));
 				offset = retryPage(all, minPrice, maxPrice, exchanges, offset, page);
-
 			} catch (SessionExpiredException e) {
 				log.warn("US session expired — refreshing and retrying page {}", page + 1);
 				refreshSession();
-				sleep(SESSION_WARMUP_MS + ThreadLocalRandom.current().nextLong(500, 1500));
+				ThreadUtil.sleep(SESSION_WARMUP_MS + ThreadLocalRandom.current().nextLong(500, 1500));
 				offset = retryPage(all, minPrice, maxPrice, exchanges, offset, page);
-
 			} catch (Exception e) {
 				log.error("US screener page {} failed: {}", page + 1, e.getMessage());
 				break;
 			}
 		}
-
 		log.info("US candidates ${}-${} on {}: {}", String.format("%.2f", minPrice), String.format("%.2f", maxPrice),
 				exchange, all.size());
 		return List.copyOf(all);
 	}
 
-	// ── chart API ─────────────────────────────────────────────────────────────
-
+	@SneakyThrows
 	private List<DailyBar> callChartApi(String ticker, int attempt) {
 		String range = historyDays <= 180 ? "6mo" : "1y";
 		String uri = String.format("/v8/finance/chart/%s?interval=1d&range=%s&includeAdjustedClose=true",
 				URLEncoder.encode(ticker, StandardCharsets.UTF_8), range);
-
-		sleep(ThreadLocalRandom.current().nextLong(delayMinMs, delayMaxMs) + (long) (attempt - 1) * 1500);
-
+		ThreadUtil.sleep(ThreadLocalRandom.current().nextLong(delayMinMs, delayMaxMs) + (long) (attempt - 1) * 1500);
 		String body = chartClient.get().uri(uri).headers(h -> applyChartHeaders(h, ticker)).retrieve()
-				.onStatus(s -> s.value() == 429, r -> {
-					throw new RateLimitException();
-				}).onStatus(s -> s.value() == 404, r -> {
-					throw new NotFoundException();
-				}).onStatus(HttpStatusCode::isError, r -> {
-					throw new RuntimeException("HTTP " + r.statusCode().value());
-				}).bodyToMono(String.class).block(Duration.ofSeconds(25));
-
+				.onStatus(s -> s.value() == 429, r -> Mono.error(new RateLimitException("Yahoo Finance", 30L)))
+				.onStatus(s -> s.value() == 404, r -> Mono.error(new NotFoundException("Ticker", ticker)))
+				.onStatus(HttpStatusCode::isError,
+						r -> r.bodyToMono(String.class).defaultIfEmpty("[no body]")
+								.flatMap(errBody -> Mono.error(
+										new ExternalApiException("Yahoo Finance", r.statusCode().value(), errBody))))
+				.bodyToMono(String.class).block(Duration.ofSeconds(25));
 		return body == null ? Collections.emptyList() : parseChartJson(ticker, body);
 	}
 
-	// ── screener page ─────────────────────────────────────────────────────────
-
+	@SneakyThrows
 	private List<StockCandidate> fetchScreenerPage(double minPrice, double maxPrice, List<String> exchanges,
 			int offset) {
-		String ua = USER_AGENTS[ThreadLocalRandom.current().nextInt(USER_AGENTS.length)];
+		String ua = Constants.USER_AGENTS[ThreadLocalRandom.current().nextInt(Constants.USER_AGENTS.length)];
 		String payload = buildPayload(minPrice, maxPrice, exchanges, offset);
-
 		String body = screenerClient.screen("finance.yahoo.com", "false", "en-US", "US", crumb, ua, sessionCookie,
-				FINANCE_HOME, FINANCE_HOME + "/research-hub/screener/", payload);
-
+				Constants.FINANCE_YAHOO_URL, Constants.FINANCE_YAHOO_URL + "/research-hub/screener/", payload);
 		return body == null ? List.of() : parseScreenerPage(body, minPrice, maxPrice);
 	}
 
-	/**
-	 * Retry a single screener page after session refresh; advances offset on
-	 * success.
-	 */
 	private int retryPage(List<StockCandidate> all, double minPrice, double maxPrice, List<String> exchanges,
 			int offset, int page) {
 		try {
@@ -234,8 +197,6 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		}
 		return offset;
 	}
-
-	// ── session ───────────────────────────────────────────────────────────────
 
 	@Override
 	public String getSessionCookie() {
@@ -264,64 +225,54 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		log.info("US: Refreshing Yahoo Finance session...");
 		for (int attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
-				// Step 1 — cookies
-				var homeResp = homeClient.getHome(USER_AGENTS[0], "text/html,*/*", "en-US,en;q=0.9");
+				var homeResp = homeClient.getHome(Constants.USER_AGENTS[0], "text/html,*/*", "en-US,en;q=0.9");
 				String cookie = extractCookies(homeResp.getHeaders().get(HttpHeaders.SET_COOKIE));
 				if (cookie == null) {
-					sleep(2000);
+					ThreadUtil.sleep(2000);
 					continue;
 				}
-
-				sleep(1500 + ThreadLocalRandom.current().nextLong(1000));
-
-				// Step 2 — crumb
-				String crumbVal = crumbClient.getCrumb(USER_AGENTS[0], cookie, FINANCE_HOME + "/");
+				ThreadUtil.sleep(1500 + ThreadLocalRandom.current().nextLong(1000));
+				String crumbVal = crumbClient.getCrumb(Constants.USER_AGENTS[0], cookie,
+						Constants.FINANCE_YAHOO_URL + "/");
 				if (crumbVal == null || crumbVal.isBlank() || crumbVal.length() < 3 || crumbVal.contains("<")) {
-					sleep(2000);
+					ThreadUtil.sleep(2000);
 					continue;
 				}
-
 				sessionCookie = cookie;
 				crumb = crumbVal.trim();
 				sessionAgeMs = System.currentTimeMillis();
 				sessionFreshAt = System.currentTimeMillis();
 				log.info("US: session ready. Crumb: {}...", crumb.substring(0, Math.min(crumb.length(), 8)));
 				return;
-
 			} catch (Exception e) {
 				log.warn("US session refresh {}/{} failed: {}", attempt, maxRetries, e.getMessage());
-				sleep(2000L * attempt);
+				ThreadUtil.sleep(2000L * attempt);
 			}
 		}
 		log.error("US: Failed to establish session after {} attempts", maxRetries);
 	}
 
-	// ── parse helpers ─────────────────────────────────────────────────────────
-
-	private List<DailyBar> parseChartJson(String ticker, String body) {
+	private List<DailyBar> parseChartJson(String ticker, String body) throws Exception {
 		try {
 			JsonNode root = json.readTree(body);
 			JsonNode error = root.path("chart").path("error");
 			if (!error.isNull() && error.has("description")) {
 				String desc = error.path("description").asText("");
 				if (desc.contains("Not Found") || desc.contains("No data"))
-					throw new NotFoundException();
-				throw new RuntimeException("Yahoo error: " + desc);
+					throw new NotFoundException("Data", desc);
+				throw new Exception("Yahoo error: " + desc);
 			}
 			JsonNode result = root.path("chart").path("result");
 			if (!result.isArray() || result.isEmpty())
 				return Collections.emptyList();
-
 			JsonNode r = result.get(0);
 			JsonNode meta = r.path("meta");
 			String name = meta.path("longName").asText(meta.path("shortName").asText(ticker));
 			JsonNode tsNode = r.path("timestamp");
 			if (!tsNode.isArray() || tsNode.isEmpty())
 				return Collections.emptyList();
-
 			JsonNode quote = r.path("indicators").path("quote").get(0);
 			JsonNode adjClose = resolveAdjClose(r);
-
 			List<DailyBar> bars = new ArrayList<>(tsNode.size());
 			for (int i = 0; i < tsNode.size(); i++) {
 				try {
@@ -345,11 +296,11 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		} catch (RateLimitException | NotFoundException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new RuntimeException("parseChartJson failed", e);
+			throw new Exception("parseChartJson failed", e);
 		}
 	}
 
-	private List<StockCandidate> parseScreenerPage(String body, double minPrice, double maxPrice) {
+	private List<StockCandidate> parseScreenerPage(String body, double minPrice, double maxPrice) throws Exception {
 		try {
 			JsonNode root = json.readTree(body);
 			JsonNode result = root.path("finance").path("result");
@@ -358,8 +309,8 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 				if (!error.isNull()) {
 					String desc = error.path("description").asText("unknown");
 					if (desc.contains("Unauthorized") || desc.contains("Invalid crumb"))
-						throw new SessionExpiredException();
-					throw new RuntimeException("US Screener error: " + desc);
+						throw new SessionExpiredException("Yahoo");
+					throw new Exception("US Screener error: " + desc);
 				}
 				return List.of();
 			}
@@ -385,7 +336,7 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		} catch (SessionExpiredException | ScreenerRateLimitException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new RuntimeException("parseScreenerPage failed", e);
+			throw new Exception("parseScreenerPage failed", e);
 		}
 	}
 
@@ -402,8 +353,6 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		return bars;
 	}
 
-	// ── small utilities ───────────────────────────────────────────────────────
-
 	private JsonNode resolveAdjClose(JsonNode r) {
 		JsonNode arr = r.path("indicators").path("adjclose");
 		return (!arr.isNull() && arr.isArray() && !arr.isEmpty()) ? arr.get(0).path("adjclose") : json.nullNode();
@@ -419,12 +368,12 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 	}
 
 	private void applyChartHeaders(HttpHeaders h, String ticker) {
-		int ua = uaIndex.getAndIncrement() % USER_AGENTS.length;
-		h.set("User-Agent", USER_AGENTS[ua]);
+		int ua = uaIndex.getAndIncrement() % Constants.USER_AGENTS.length;
+		h.set("User-Agent", Constants.USER_AGENTS[ua]);
 		h.set("Accept", "application/json,*/*");
 		h.set("Accept-Language", "en-US,en;q=0.9");
 		h.set("Accept-Encoding", "identity");
-		h.set("Referer", FINANCE_HOME + "/quote/" + ticker + "/");
+		h.set("Referer", Constants.FINANCE_YAHOO_URL + "/quote/" + ticker + "/");
 	}
 
 	private String extractCookies(List<String> setCookieHeaders) {
@@ -467,27 +416,25 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 
 	private List<String> resolveExchanges(String exchange) {
 		return switch (exchange.toUpperCase()) {
-		case "NASDAQ" -> List.of(NASDAQ, NASDAQ_CM);
-		case "NYSE" -> List.of(NYSE, NYSE_MKT);
-		case "ALL" -> List.of(NASDAQ, NASDAQ_CM, NYSE, NYSE_MKT);
+		case "NASDAQ" -> List.of(Constants.NASDAQ, Constants.NASDAQ_CM);
+		case "NYSE" -> List.of(Constants.NYSE, Constants.NYSE_MKT);
+		case "ALL" -> List.of(Constants.NASDAQ, Constants.NASDAQ_CM, Constants.NYSE, Constants.NYSE_MKT);
 		default -> List.of(exchange);
 		};
 	}
 
-	/** Honour the chart-level 429 cooldown. */
 	private void throttleChartIfNeeded() {
 		long sinceBlock = System.currentTimeMillis() - last429At;
 		if (last429At > 0 && sinceBlock < COOLDOWN_MS)
-			sleep(COOLDOWN_MS - sinceBlock);
+			ThreadUtil.sleep(COOLDOWN_MS - sinceBlock);
 	}
 
-	/** Honour the screener-level 429 cooldown (longer than chart). */
 	private void throttleScreenerIfNeeded() {
 		long msSince429 = System.currentTimeMillis() - screener429At;
 		if (screener429At > 0 && msSince429 < SCREENER_429_WAIT) {
 			long remaining = SCREENER_429_WAIT - msSince429;
 			log.warn("US screener in 429 cooldown — waiting {}ms", remaining);
-			sleep(remaining);
+			ThreadUtil.sleep(remaining);
 		}
 	}
 
@@ -496,39 +443,8 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 		if (msSinceFresh < SESSION_WARMUP_MS) {
 			long warmup = SESSION_WARMUP_MS - msSinceFresh + ThreadLocalRandom.current().nextLong(500, 1500);
 			log.info("US session warm-up — waiting {}ms", warmup);
-			sleep(warmup);
+			ThreadUtil.sleep(warmup);
 		}
 	}
 
-	private long backoff(int attempt) {
-		return Math.min(5000L * (1L << (attempt - 1)) + ThreadLocalRandom.current().nextLong(2000), 30_000L);
-	}
-
-	private void sleep(long ms) {
-		if (ms <= 0)
-			return;
-		try {
-			Thread.sleep(ms);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
-	}
-
-	// ── exceptions ────────────────────────────────────────────────────────────
-
-	private static class RateLimitException extends RuntimeException {
-		private static final long serialVersionUID = 1L;
-	}
-
-	private static class NotFoundException extends RuntimeException {
-		private static final long serialVersionUID = 2L;
-	}
-
-	private static class SessionExpiredException extends RuntimeException {
-		private static final long serialVersionUID = 3L;
-	}
-
-	private static class ScreenerRateLimitException extends RuntimeException {
-		private static final long serialVersionUID = 4L;
-	}
 }

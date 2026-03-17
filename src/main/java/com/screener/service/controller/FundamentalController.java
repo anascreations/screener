@@ -23,6 +23,7 @@ import com.screener.service.model.ScanResult;
 import com.screener.service.service.AnalysisService;
 import com.screener.service.service.FundamentalService;
 import com.screener.service.service.FundamentalService.FundamentalResult;
+import com.screener.service.util.ThreadUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -141,11 +142,7 @@ public class FundamentalController {
 					.body(Map.of("error", "Max 10 stocks per batch for fundamental analysis"));
 		log.info("=== BATCH FUNDAMENTAL [{}/{}] {} stocks ===", m, m.name(), codes.size());
 		var results = codes.stream().map(code -> {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
+			ThreadUtil.sleep(500);
 			FundamentalResult r = fundamentalService.analyze(m, code);
 			Map<String, Object> item = new LinkedHashMap<>();
 			item.put("code", r.code());
@@ -214,11 +211,7 @@ public class FundamentalController {
 		ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
 		List<CompletableFuture<Map<String, Object>>> futures = flat.stream()
 				.map(code -> CompletableFuture.supplyAsync(() -> {
-					try {
-						Thread.sleep(300);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-					}
+					ThreadUtil.sleep(300);
 					FundamentalResult r = fundamentalService.analyze(m, code);
 					return detail ? buildFundamentalResponse(m, r) : buildCompactItem(r);
 				}, pool)).toList();
