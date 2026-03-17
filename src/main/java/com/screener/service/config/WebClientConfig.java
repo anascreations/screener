@@ -1,12 +1,14 @@
 package com.screener.service.config;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.support.WebClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
@@ -19,6 +21,7 @@ import com.screener.service.constants.Constants;
 
 import io.netty.channel.ChannelOption;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 import reactor.netty.http.HttpProtocol;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
@@ -29,9 +32,9 @@ public class WebClientConfig {
 
 	@Bean
 	ConnectionProvider yahooConnectionPool() {
-		return ConnectionProvider.builder("yahoo-pool").maxConnections(10).pendingAcquireMaxCount(20)
-				.maxIdleTime(Duration.ofSeconds(30)).maxLifeTime(Duration.ofMinutes(5))
-				.evictInBackground(Duration.ofSeconds(60)).build();
+		return ConnectionProvider.builder("yahoo-pool").maxConnections(5).pendingAcquireMaxCount(10)
+				.pendingAcquireTimeout(Duration.ofSeconds(45)).maxIdleTime(Duration.ofSeconds(30))
+				.maxLifeTime(Duration.ofMinutes(5)).evictInBackground(Duration.ofSeconds(60)).build();
 	}
 
 	@Bean
@@ -65,7 +68,22 @@ public class WebClientConfig {
 				.responseTimeout(Duration.ofSeconds(20)).protocol(HttpProtocol.HTTP11)
 				.httpResponseDecoder(spec -> spec.maxHeaderSize(maxHeaderSize));
 		return WebClient.builder().baseUrl(baseUrl).clientConnector(new ReactorClientHttpConnector(netty))
-				.codecs(cfg -> cfg.defaultCodecs().maxInMemorySize(2 * 1024 * 1024)).build();
+				.codecs(cfg -> cfg.defaultCodecs().maxInMemorySize(2 * 1024 * 1024)).filter(rateLimitRetryFilter())
+				.build();
+	}
+
+	private ExchangeFilterFunction rateLimitRetryFilter() {
+		return (request, next) -> next.exchange(request).flatMap(response -> {
+			int value = response.statusCode().value();
+			if (value == 429) {
+				log.info("Too many request: " + value);
+				long retryAfter = Optional.ofNullable(response.headers().asHttpHeaders().getFirst("Retry-After"))
+						.map(Long::parseLong).orElse(5L);
+				return response.releaseBody().then(Mono.delay(Duration.ofSeconds(retryAfter)))
+						.then(next.exchange(request));
+			}
+			return Mono.just(response);
+		});
 	}
 
 	private <T> T proxyClient(String baseUrl, ConnectionProvider pool, int maxHeaderSize, Class<T> clientClass) {

@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 @Configuration
 public class JsonPrettyConfig {
 	@Bean
-	public JsonPrettyPrinter jsonPretty() {
+	JsonPrettyPrinter jsonPretty() {
 		ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 		return obj -> {
 			if (obj == null)
@@ -25,7 +25,6 @@ public class JsonPrettyConfig {
 		};
 	}
 
-	/** Functional interface — one method so Thymeleaf EL can call .format() */
 	@FunctionalInterface
 	public interface JsonPrettyPrinter {
 		String format(Object obj);
