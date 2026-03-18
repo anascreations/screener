@@ -9,8 +9,10 @@ import lombok.Data;
 @Data
 @Builder
 public class MaCalculationRequest {
-
-	// ── Required ──────────────────────────────────────────────────────────────
+	@NotBlank
+	private String market;
+	@NotBlank
+	private String timeframe;
 	@NotNull
 	@DecimalMin("0.0001")
 	private Double marketPrice;
@@ -26,12 +28,7 @@ public class MaCalculationRequest {
 	@NotNull
 	@DecimalMin("0.0001")
 	private Double ma200;
-	@NotBlank
-	private String timeframe;
-
-	// ── Optional enrichment ───────────────────────────────────────────────────
-	private Double rsi14; // 0–100
-	private Double atr14; // dynamic SL sizing
-	private Double volume; // today's volume
-	private Double avgVolume20; // 20-day avg volume
+	private Double rsi14;
+	private Double atr14;
+	private Double volumeRatio;
 }

@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── DARK THEME (default) ─────────────────────────────────────────── */
     :root {
       --bg:       #080c10;
       --surface:  #0d1117;
@@ -24,16 +26,91 @@
       --text:     #c9d8e8;
       --dim:      #5a7a96;
       --muted:    #344a5a;
+      --shadow:   rgba(0,0,0,.4);
       --mono:     'JetBrains Mono', monospace;
       --head:     'Space Mono', monospace;
       --r:        6px;
+      --scanline: rgba(0,0,0,.025);
     }
+
+    /* ── LIGHT THEME ──────────────────────────────────────────────────── */
+    html.light {
+      --bg:       #f0f4f8;
+      --surface:  #ffffff;
+      --card:     #ffffff;
+      --card2:    #f7fafc;
+      --border:   #d1dce8;
+      --border2:  #b8cad8;
+      --accent:   #0077aa;
+      --green:    #00894d;
+      --yellow:   #b07800;
+      --red:      #cc2233;
+      --orange:   #c05000;
+      --text:     #1a2a3a;
+      --dim:      #5a7a96;
+      --muted:    #8aabbf;
+      --shadow:   rgba(0,0,0,.10);
+      --scanline: transparent;
+    }
+
     html { scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
-    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.025) 2px, rgba(0,0,0,.025) 4px); }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background .25s, color .25s;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline) 2px, var(--scanline) 4px);
+    }
+
+    /* ── THEME TOGGLE ─────────────────────────────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid var(--border2);
+      background: var(--card);
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .06em;
+      transition: all .15s;
+      user-select: none;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-toggle .t-icon { font-size: 14px; transition: transform .3s; }
+    html.light .theme-toggle .t-icon { transform: rotate(180deg); }
+    .theme-toggle .t-label { text-transform: uppercase; }
 
     /* Header */
-    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 54px; position: sticky; top: 0; z-index: 100; }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 54px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 8px var(--shadow);
+      transition: background .25s, border-color .25s, box-shadow .25s;
+    }
     .logo { font-family: var(--head); font-size: 14px; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: .6rem; }
     .logo-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); animation: blink 2s infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
@@ -44,11 +121,19 @@
     .layout { display: flex; flex: 1; overflow: hidden; }
 
     /* Sidebar */
-    .sidebar { width: 210px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.2rem 0; flex-shrink: 0; overflow-y: auto; }
+    .sidebar {
+      width: 210px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.2rem 0;
+      flex-shrink: 0;
+      overflow-y: auto;
+      transition: background .25s, border-color .25s;
+    }
     .nav-group { padding: .3rem 1.2rem .1rem; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: .6rem; }
     .nav-item { display: flex; align-items: center; gap: .55rem; padding: .5rem 1.2rem; cursor: pointer; color: var(--dim); font-size: 11.5px; border-left: 2px solid transparent; transition: all .13s; user-select: none; }
-    .nav-item:hover { color: var(--text); background: rgba(0,212,255,.04); }
-    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,255,.07); }
+    .nav-item:hover { color: var(--text); background: rgba(0,119,170,.06); }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,119,170,.08); }
     .ni { font-size: 13px; width: 16px; text-align: center; }
 
     /* Main */
@@ -65,13 +150,20 @@
     .pg-sub { font-size: 10.5px; color: var(--dim); margin-top: .2rem; font-family: var(--mono); }
 
     /* Card */
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      box-shadow: 0 1px 4px var(--shadow);
+      transition: background .25s, border-color .25s, box-shadow .25s;
+    }
     .card-hdr { padding: .65rem 1.2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .6rem; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
     .card-hdr .ci { color: var(--accent); font-size: 13px; }
     .card-body { padding: 1.2rem; }
 
     /* Forms */
-    .fg { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: .7rem; }
+    .fg  { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: .7rem; }
     .fg2 { grid-template-columns: repeat(2, 1fr); }
     .fg3 { grid-template-columns: repeat(3, 1fr); }
     .fg4 { grid-template-columns: repeat(4, 1fr); }
@@ -79,40 +171,50 @@
     .fld { display: flex; flex-direction: column; gap: .3rem; }
     .fld label { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
     .fld-wide { grid-column: 1 / -1; }
-    input, select, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--mono); font-size: 12px; padding: .5rem .7rem; outline: none; transition: border-color .13s; width: 100%; }
-    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,.08); }
-    select option { background: var(--card); }
+    input, select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: .5rem .7rem;
+      outline: none;
+      transition: border-color .13s, background .25s, color .25s;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,119,170,.12); }
+    select option { background: var(--card); color: var(--text); }
     textarea { resize: vertical; min-height: 58px; }
     .form-actions { margin-top: .9rem; display: flex; gap: .7rem; }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; padding: .55rem 1.4rem; border-radius: var(--r); border: none; cursor: pointer; font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; transition: all .13s; }
-    .btn-primary { background: var(--accent); color: #000; }
-    .btn-primary:hover { background: #33deff; box-shadow: 0 0 18px rgba(0,212,255,.35); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    html:not(.light) .btn-primary { color: #000; }
+    .btn-primary:hover { filter: brightness(1.12); box-shadow: 0 0 16px rgba(0,119,170,.35); }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
     /* Info strip */
-    .info-strip { display: flex; gap: 1rem; flex-wrap: wrap; padding: .7rem 1rem; background: rgba(0,212,255,.04); border: 1px solid rgba(0,212,255,.1); border-radius: var(--r); font-size: 11px; }
+    .info-strip { display: flex; gap: 1rem; flex-wrap: wrap; padding: .7rem 1rem; background: rgba(0,119,170,.05); border: 1px solid rgba(0,119,170,.15); border-radius: var(--r); font-size: 11px; }
     .ii { display: flex; flex-direction: column; gap: .1rem; }
     .ii-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
     .ii-val { color: var(--accent); font-weight: 600; }
 
     /* ═══ RESULT COMPONENTS ═══════════════════════════════════════════════ */
 
-    /* Error banner */
-    .err-banner { background: rgba(255,71,87,.08); border: 1px solid rgba(255,71,87,.25); border-radius: var(--r); padding: .9rem 1.1rem; display: flex; align-items: flex-start; gap: .7rem; color: var(--red); font-size: 12px; }
+    .err-banner { background: rgba(204,34,51,.08); border: 1px solid rgba(204,34,51,.25); border-radius: var(--r); padding: .9rem 1.1rem; display: flex; align-items: flex-start; gap: .7rem; color: var(--red); font-size: 12px; }
     .err-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 
-    /* Decision header strip */
     .decision-strip { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; border-radius: var(--r); border: 1px solid var(--border); }
-    .decision-strip.buy     { background: rgba(0,255,136,.06);  border-color: rgba(0,255,136,.2); }
-    .decision-strip.watch   { background: rgba(255,209,102,.06); border-color: rgba(255,209,102,.2); }
-    .decision-strip.skip    { background: rgba(255,71,87,.06);   border-color: rgba(255,71,87,.2); }
-    .decision-strip.proceed { background: rgba(0,212,255,.06);   border-color: rgba(0,212,255,.2); }
+    .decision-strip.buy     { background: rgba(0,137,77,.07);   border-color: rgba(0,137,77,.25); }
+    .decision-strip.watch   { background: rgba(176,120,0,.07);  border-color: rgba(176,120,0,.25); }
+    .decision-strip.skip    { background: rgba(204,34,51,.07);  border-color: rgba(204,34,51,.25); }
+    .decision-strip.proceed { background: rgba(0,119,170,.07);  border-color: rgba(0,119,170,.25); }
 
     .d-badge { font-family: var(--head); font-size: 15px; font-weight: 700; letter-spacing: .08em; padding: .3rem .9rem; border-radius: 4px; }
-    .d-badge.buy     { background: rgba(0,255,136,.15);  color: var(--green); }
-    .d-badge.watch   { background: rgba(255,209,102,.15); color: var(--yellow); }
-    .d-badge.skip    { background: rgba(255,71,87,.15);  color: var(--red); }
-    .d-badge.proceed { background: rgba(0,212,255,.15);  color: var(--accent); }
+    .d-badge.buy     { background: rgba(0,137,77,.15);   color: var(--green); }
+    .d-badge.watch   { background: rgba(176,120,0,.15);  color: var(--yellow); }
+    .d-badge.skip    { background: rgba(204,34,51,.15);  color: var(--red); }
+    .d-badge.proceed { background: rgba(0,119,170,.15);  color: var(--accent); }
 
     .d-name  { font-size: 14px; font-weight: 600; color: var(--text); }
     .d-score { font-family: var(--head); font-size: 22px; font-weight: 700; }
@@ -122,9 +224,8 @@
     .d-meta  { font-size: 11px; color: var(--dim); display: flex; flex-direction: column; gap: .1rem; }
     .d-meta span { color: var(--text); }
 
-    /* Stat grid */
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .7rem; }
-    .stat-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: .6rem .8rem; }
+    .stat-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: .6rem .8rem; transition: background .25s; }
     .stat-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .25rem; }
     .stat-value { font-size: 14px; font-weight: 600; color: var(--text); }
     .stat-value.accent { color: var(--accent); }
@@ -133,76 +234,67 @@
     .stat-value.red    { color: var(--red); }
     .stat-sub { font-size: 10px; color: var(--dim); margin-top: .15rem; }
 
-    /* Price block */
     .price-block { display: flex; flex-direction: column; gap: .45rem; }
-    .price-block .prow { display: grid; grid-template-columns: 180px 140px 1fr; align-items: center; padding: .55rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; gap: .5rem; }
-    .price-block .prow.entry { border-color: rgba(0,212,255,.3); }
-    .price-block .prow.sl    { border-color: rgba(255,71,87,.3); }
-    .price-block .prow.tp1   { border-color: rgba(0,255,136,.22); }
-    .price-block .prow.tp2   { border-color: rgba(0,255,136,.15); }
-    .price-block .prow.tp3   { border-color: rgba(0,255,136,.09); }
+    .price-block .prow { display: grid; grid-template-columns: 180px 140px 1fr; align-items: center; padding: .55rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; gap: .5rem; transition: background .25s; }
+    .price-block .prow.entry { border-color: rgba(0,119,170,.35); }
+    .price-block .prow.sl    { border-color: rgba(204,34,51,.35); }
+    .price-block .prow.tp1   { border-color: rgba(0,137,77,.28); }
+    .price-block .prow.tp2   { border-color: rgba(0,137,77,.20); }
+    .price-block .prow.tp3   { border-color: rgba(0,137,77,.12); }
     .prow-label { color: var(--dim); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; }
     .prow-val { font-weight: 700; font-size: 13.5px; font-family: var(--head); }
     .prow-val.accent { color: var(--accent); }
     .prow-val.red    { color: var(--red); }
     .prow-val.green  { color: var(--green); }
-    .prow-val.g2     { color: #66ffaa; }
-    .prow-val.g3     { color: #99ffcc; }
+    .prow-val.g2     { color: #008855; }
+    .prow-val.g3     { color: #00aa66; }
+    html:not(.light) .prow-val.g2 { color: #66ffaa; }
+    html:not(.light) .prow-val.g3 { color: #99ffcc; }
     .prow-note { font-size: 10.5px; color: var(--dim); font-style: italic; text-align: right; }
 
-    /* Indicators table */
     .ind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; }
-    .ind-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: .5rem .7rem; display: flex; flex-direction: column; gap: .1rem; }
+    .ind-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: .5rem .7rem; display: flex; flex-direction: column; gap: .1rem; transition: background .25s; }
     .ind-name  { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
     .ind-val   { font-size: 13px; font-weight: 600; color: var(--text); }
 
-    /* Tags */
     .tag-list { display: flex; flex-wrap: wrap; gap: .4rem; }
     .tag { padding: .2rem .6rem; border-radius: 3px; font-size: 10.5px; border: 1px solid; }
-    .tag.reason  { background: rgba(0,255,136,.07);  border-color: rgba(0,255,136,.2);  color: var(--green); }
-    .tag.warning { background: rgba(255,209,102,.07); border-color: rgba(255,209,102,.2); color: var(--yellow); }
-    .tag.info    { background: rgba(0,212,255,.07);   border-color: rgba(0,212,255,.2);   color: var(--accent); }
+    .tag.reason  { background: rgba(0,137,77,.08);   border-color: rgba(0,137,77,.25);  color: var(--green); }
+    .tag.warning { background: rgba(176,120,0,.08);  border-color: rgba(176,120,0,.25); color: var(--yellow); }
+    .tag.info    { background: rgba(0,119,170,.08);  border-color: rgba(0,119,170,.25); color: var(--accent); }
 
-    /* Table */
     .result-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
     .result-table th { padding: .5rem .75rem; background: var(--bg); border-bottom: 1px solid var(--border); text-align: left; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
-    .result-table td { padding: .55rem .75rem; border-bottom: 1px solid rgba(30,45,61,.6); vertical-align: middle; }
+    .result-table td { padding: .55rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .result-table tr:last-child td { border-bottom: none; }
-    .result-table tr:hover td { background: rgba(0,212,255,.025); }
+    .result-table tr:hover td { background: rgba(0,119,170,.04); }
 
-    /* Section title */
     .sec-title { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); padding-bottom: .5rem; border-bottom: 1px solid var(--border); margin-bottom: .8rem; display: flex; align-items: center; gap: .5rem; }
     .sec-title::before { content: ''; display: inline-block; width: 3px; height: 12px; background: var(--accent); border-radius: 2px; }
 
-    /* Advice box */
-    .advice-box { background: var(--bg); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: .8rem 1rem; font-size: 12px; line-height: 1.7; color: var(--text); }
+    .advice-box { background: var(--bg); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: .8rem 1rem; font-size: 12px; line-height: 1.7; color: var(--text); transition: background .25s; }
     .advice-box.green  { border-left-color: var(--green); }
     .advice-box.yellow { border-left-color: var(--yellow); }
     .advice-box.red    { border-left-color: var(--red); }
 
-    /* Check list */
     .check-list { display: flex; flex-direction: column; gap: .35rem; }
-    .check-row  { display: flex; align-items: center; gap: .6rem; font-size: 11.5px; padding: .3rem .6rem; border-radius: 4px; background: var(--bg); }
+    .check-row  { display: flex; align-items: center; gap: .6rem; font-size: 11.5px; padding: .3rem .6rem; border-radius: 4px; background: var(--bg); transition: background .25s; }
     .check-pass { color: var(--green); }
     .check-fail { color: var(--red); }
     .check-label { color: var(--dim); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 
-    /* Summary stat row */
     .sum-row { display: flex; gap: .7rem; flex-wrap: wrap; }
-    .sum-cell { flex: 1; min-width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: .6rem .9rem; text-align: center; }
+    .sum-cell { flex: 1; min-width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: .6rem .9rem; text-align: center; transition: background .25s; }
     .sum-cell .sv { font-family: var(--head); font-size: 20px; font-weight: 700; }
     .sum-cell .sl { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-top: .1rem; }
 
-    /* History row */
     .hist-item { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: .75rem 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .hist-item + .hist-item { margin-top: .5rem; }
 
-    /* Divider */
     .divider { height: 1px; background: var(--border); margin: .4rem 0; }
 
-    /* Upload */
     .upload-area { border: 2px dashed var(--border2); border-radius: var(--r); padding: 1.8rem; text-align: center; cursor: pointer; transition: all .2s; color: var(--dim); }
-    .upload-area:hover { border-color: var(--accent); color: var(--text); background: rgba(0,212,255,.03); }
+    .upload-area:hover { border-color: var(--accent); color: var(--text); background: rgba(0,119,170,.04); }
     .upload-icon { font-size: 26px; margin-bottom: .5rem; }
 
     /* Scrollbar */
@@ -210,22 +302,36 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
 
-    /* ── Hamburger button (mobile only) ──────────────────────────────── */
+    /* Risk pill */
+    .risk-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .7rem; border-radius: 99px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border: 1px solid; }
+    .risk-low    { background: rgba(0,137,77,.1);   border-color: rgba(0,137,77,.3);   color: var(--green); }
+    .risk-medium { background: rgba(176,120,0,.1);  border-color: rgba(176,120,0,.3);  color: var(--yellow); }
+    .risk-high   { background: rgba(204,34,51,.1);  border-color: rgba(204,34,51,.3);  color: var(--red); }
+
+    .stack-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .8rem; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; background: rgba(0,119,170,.1); border: 1px solid rgba(0,119,170,.25); color: var(--accent); }
+
+    .grade-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .9rem; border-radius: 4px; font-family: var(--head); font-size: 15px; font-weight: 700; letter-spacing: .08em; }
+    .grade-spp { background: rgba(0,137,77,.15);   border: 1px solid rgba(0,137,77,.3);   color: var(--green); }
+    .grade-a   { background: rgba(0,119,170,.15);  border: 1px solid rgba(0,119,170,.3);  color: var(--accent); }
+    .grade-b   { background: rgba(176,120,0,.15);  border: 1px solid rgba(176,120,0,.3);  color: var(--yellow); }
+    .grade-c   { background: rgba(192,80,0,.15);   border: 1px solid rgba(192,80,0,.3);   color: var(--orange); }
+    .grade-x   { background: rgba(204,34,51,.15);  border: 1px solid rgba(204,34,51,.3);  color: var(--red); }
+
+    .formula-result { font-family: var(--head); font-size: 24px; font-weight: 700; color: var(--accent); }
+
+    /* ── Mobile hamburger ─────────────────────────────────────────────── */
     .hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; cursor: pointer; padding: 4px; border-radius: var(--r); border: 1px solid var(--border2); background: transparent; flex-shrink: 0; }
     .hamburger span { display: block; height: 2px; background: var(--accent); border-radius: 2px; transition: all .25s; }
     .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
     .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
     .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-    /* ── Drawer overlay ───────────────────────────────────────────────── */
-    .drawer-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.6); backdrop-filter: blur(2px); }
+    .drawer-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.5); backdrop-filter: blur(2px); }
     .drawer-overlay.open { display: block; }
 
-    /* ── Mobile drawer ────────────────────────────────────────────────── */
     .sidebar-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; background: var(--surface); border-right: 1px solid var(--border); z-index: 300; transform: translateX(-100%); transition: transform .28s cubic-bezier(.4,0,.2,1); overflow-y: auto; padding-top: 56px; }
     .sidebar-drawer.open { transform: translateX(0); }
 
-    /* ── Bottom nav bar (mobile) ──────────────────────────────────────── */
     .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: var(--surface); border-top: 1px solid var(--border); z-index: 100; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .bottom-nav::-webkit-scrollbar { display: none; }
     .bottom-nav-inner { display: inline-flex; align-items: stretch; height: 100%; padding: 0 .25rem; gap: .1rem; min-width: 100%; }
@@ -234,49 +340,30 @@
     .bn-item:hover  { color: var(--text); }
     .bn-item.active { color: var(--accent); border-bottom-color: var(--accent); }
 
+    /* Empty state */
+    .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--dim); }
+    .empty-icon  { font-size: 28px; margin-bottom: .6rem; }
+
     /* ── Responsive ────────────────────────────────────────────────────── */
     @media (max-width: 768px) {
-      .sidebar   { display: none; }
-      #sb3badge  { display: none; }
-      .hamburger { display: flex; }
+      .sidebar    { display: none; }
+      #sb3badge   { display: none; }
+      .hamburger  { display: flex; }
       .bottom-nav { display: block; }
       .main { padding: 1rem; padding-bottom: 72px; }
       .fg3, .fg4, .fg5 { grid-template-columns: repeat(2,1fr); }
       .price-block .prow { grid-template-columns: 130px 110px 1fr; font-size: 11px; }
       .stat-grid { grid-template-columns: repeat(2,1fr); }
-      .sum-row   { gap: .5rem; }
-      .sum-cell  { min-width: 70px; }
+      .sum-row { gap: .5rem; }
+      .sum-cell { min-width: 70px; }
       .formula-grid { grid-template-columns: 1fr !important; }
+      .header-right { gap: .5rem !important; }
     }
     @media (max-width: 420px) {
       .fg2, .fg3, .fg4, .fg5 { grid-template-columns: 1fr; }
       .price-block .prow { grid-template-columns: 1fr; gap: .2rem; }
       .price-block .prow-note { text-align: left; }
     }
-
-    /* Risk pill */
-    .risk-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .7rem; border-radius: 99px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border: 1px solid; }
-    .risk-low    { background: rgba(0,255,136,.1);   border-color: rgba(0,255,136,.3);   color: var(--green); }
-    .risk-medium { background: rgba(255,209,102,.1); border-color: rgba(255,209,102,.3); color: var(--yellow); }
-    .risk-high   { background: rgba(255,71,87,.1);   border-color: rgba(255,71,87,.3);   color: var(--red); }
-
-    /* Stack grade */
-    .stack-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .8rem; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; background: rgba(0,212,255,.1); border: 1px solid rgba(0,212,255,.25); color: var(--accent); }
-
-    /* Grade badge — for trend distance S++ A B C */
-    .grade-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .9rem; border-radius: 4px; font-family: var(--head); font-size: 15px; font-weight: 700; letter-spacing: .08em; }
-    .grade-spp  { background: rgba(0,255,136,.15);   border: 1px solid rgba(0,255,136,.3);   color: var(--green); }
-    .grade-a    { background: rgba(0,212,255,.15);   border: 1px solid rgba(0,212,255,.3);   color: var(--accent); }
-    .grade-b    { background: rgba(255,209,102,.15); border: 1px solid rgba(255,209,102,.3); color: var(--yellow); }
-    .grade-c    { background: rgba(255,107,53,.15);  border: 1px solid rgba(255,107,53,.3);  color: var(--orange); }
-    .grade-x    { background: rgba(255,71,87,.15);   border: 1px solid rgba(255,71,87,.3);   color: var(--red); }
-
-    /* Formula result highlight */
-    .formula-result { font-family: var(--head); font-size: 24px; font-weight: 700; color: var(--accent); }
-
-    /* Empty state */
-    .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--dim); }
-    .empty-icon  { font-size: 28px; margin-bottom: .6rem; }
   </style>
 </head>
 <body>
@@ -286,9 +373,13 @@
   <button class="hamburger" id="menuBtn" onclick="toggleDrawer()" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
-  <div class="logo"><div class="logo-dot"></div>SCREENER TERMINAL</div>
-  <div style="display:flex;align-items:center;gap:.9rem;">
-    <span class="hbadge" id="sb3badge">2026 - anascreations - All Rights Reserved</span>
+  <div class="logo"><div class="logo-dot"></div>TradeMatrix</div>
+  <div class="header-right" style="display:flex;align-items:center;gap:.9rem;">
+    <!-- <span class="hbadge" id="sb3badge">2026 · anascreations</span> -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+      <span class="t-icon">🌙</span>
+      <span class="t-label" id="themeLabel">Dark</span>
+    </button>
     <span class="hbadge live">● LIVE</span>
   </div>
 </header>
@@ -316,20 +407,20 @@
   <div class="nav-item" onclick="showTabMobile('level2')"><span class="ni">◉</span>Level 2 OCR</div>
 </nav>
 
-<!-- Bottom navigation bar -->
+<!-- Bottom nav -->
 <nav class="bottom-nav" id="bottomNav">
   <div class="bottom-nav-inner">
-    <div class="bn-item active" id="bn-scan-single"        onclick="showTab('scan-single')"><span class="bn-icon">⊡</span><span>Single</span></div>
-    <div class="bn-item"        id="bn-scan-batch"         onclick="showTab('scan-batch')"><span class="bn-icon">⊞</span><span>Batch</span></div>
-    <div class="bn-item"        id="bn-scan-range"         onclick="showTab('scan-range')"><span class="bn-icon">⟂</span><span>Range</span></div>
-    <div class="bn-item"        id="bn-watchlist"          onclick="showTab('watchlist')"><span class="bn-icon">◈</span><span>Watchlist</span></div>
-    <div class="bn-item"        id="bn-result-today"       onclick="showTab('result-today')"><span class="bn-icon">▦</span><span>Today</span></div>
-    <div class="bn-item"        id="bn-result-stock"       onclick="showTab('result-stock')"><span class="bn-icon">⊛</span><span>History</span></div>
-    <div class="bn-item"        id="bn-ma-calc"            onclick="showTab('ma-calc')"><span class="bn-icon">∿</span><span>MA</span></div>
-    <div class="bn-item"        id="bn-ma-trend-distance"  onclick="showTab('ma-trend-distance')"><span class="bn-icon">⇌</span><span>Trend</span></div>
-    <div class="bn-item"        id="bn-ema-calc"           onclick="showTab('ema-calc')"><span class="bn-icon">≋</span><span>EMA</span></div>
-    <div class="bn-item"        id="bn-pullback"           onclick="showTab('pullback')"><span class="bn-icon">↙</span><span>Pullback</span></div>
-    <div class="bn-item"        id="bn-level2"             onclick="showTab('level2')"><span class="bn-icon">◉</span><span>Level 2</span></div>
+    <div class="bn-item active" id="bn-scan-single"       onclick="showTab('scan-single')"><span class="bn-icon">⊡</span><span>Single</span></div>
+    <div class="bn-item"       id="bn-scan-batch"         onclick="showTab('scan-batch')"><span class="bn-icon">⊞</span><span>Batch</span></div>
+    <div class="bn-item"       id="bn-scan-range"         onclick="showTab('scan-range')"><span class="bn-icon">⟂</span><span>Range</span></div>
+    <div class="bn-item"       id="bn-watchlist"          onclick="showTab('watchlist')"><span class="bn-icon">◈</span><span>Watchlist</span></div>
+    <div class="bn-item"       id="bn-result-today"       onclick="showTab('result-today')"><span class="bn-icon">▦</span><span>Today</span></div>
+    <div class="bn-item"       id="bn-result-stock"       onclick="showTab('result-stock')"><span class="bn-icon">⊛</span><span>History</span></div>
+    <div class="bn-item"       id="bn-ma-calc"            onclick="showTab('ma-calc')"><span class="bn-icon">∿</span><span>MA</span></div>
+    <div class="bn-item"       id="bn-ma-trend-distance"  onclick="showTab('ma-trend-distance')"><span class="bn-icon">⇌</span><span>Trend</span></div>
+    <div class="bn-item"       id="bn-ema-calc"           onclick="showTab('ema-calc')"><span class="bn-icon">≋</span><span>EMA</span></div>
+    <div class="bn-item"       id="bn-pullback"           onclick="showTab('pullback')"><span class="bn-icon">↙</span><span>Pullback</span></div>
+    <div class="bn-item"       id="bn-level2"             onclick="showTab('level2')"><span class="bn-icon">◉</span><span>Level 2</span></div>
   </div>
 </nav>
 
@@ -346,12 +437,12 @@
   <div class="nav-item" th:classappend="${activeTab=='result-today'}? 'active'" onclick="showTab('result-today')"><span class="ni">▦</span>Today</div>
   <div class="nav-item" th:classappend="${activeTab=='result-stock'}? 'active'" onclick="showTab('result-stock')"><span class="ni">⊛</span>Stock History</div>
   <div class="nav-group">Calculators</div>
-  <div class="nav-item" th:classappend="${activeTab=='ma-calc'}            ? 'active'" onclick="showTab('ma-calc')"><span class="ni">∿</span>MA Calculator</div>
-  <div class="nav-item" th:classappend="${activeTab=='ma-trend-distance'}  ? 'active'" onclick="showTab('ma-trend-distance')"><span class="ni">⇌</span>Trend Distance</div>
-  <div class="nav-item" th:classappend="${activeTab=='ema-calc'}           ? 'active'" onclick="showTab('ema-calc')"><span class="ni">≋</span>EMA Calculator</div>
-  <div class="nav-item" th:classappend="${activeTab=='pullback'}           ? 'active'" onclick="showTab('pullback')"><span class="ni">↙</span>Pullback</div>
+  <div class="nav-item" th:classappend="${activeTab=='ma-calc'}           ? 'active'" onclick="showTab('ma-calc')"><span class="ni">∿</span>MA Calculator</div>
+  <div class="nav-item" th:classappend="${activeTab=='ma-trend-distance'} ? 'active'" onclick="showTab('ma-trend-distance')"><span class="ni">⇌</span>Trend Distance</div>
+  <div class="nav-item" th:classappend="${activeTab=='ema-calc'}          ? 'active'" onclick="showTab('ema-calc')"><span class="ni">≋</span>EMA Calculator</div>
+  <div class="nav-item" th:classappend="${activeTab=='pullback'}          ? 'active'" onclick="showTab('pullback')"><span class="ni">↙</span>Pullback</div>
   <div class="nav-group">Advanced</div>
-  <div class="nav-item" th:classappend="${activeTab=='level2'}      ? 'active'" onclick="showTab('level2')"><span class="ni">◉</span>Level 2 OCR</div>
+  <div class="nav-item" th:classappend="${activeTab=='level2'}     ? 'active'" onclick="showTab('level2')"><span class="ni">◉</span>Level 2 OCR</div>
 </nav>
 
 <!-- MAIN -->
@@ -383,22 +474,14 @@
   </div>
   <th:block th:if="${result != null and activeTab == 'scan-single'}">
     <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span>
-      <div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
+      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
     </div>
     <th:block th:if="${result['error'] == null}">
       <div th:with="dec=${result['decision']}"
-           th:classappend="${dec=='BUY' ? 'buy' : (dec=='WATCH' ? 'watch' : 'skip')}"
-           class="decision-strip">
-        <div th:classappend="${dec=='BUY' ? 'buy' : (dec=='WATCH' ? 'watch' : 'skip')}"
-             class="d-badge" th:text="${dec}"></div>
-        <div>
-          <div class="d-name" th:text="${result['name']}"></div>
-          <div style="font-size:11px;color:var(--dim)" th:text="${result['code']}"></div>
-        </div>
-        <div th:with="s=${result['score']}"
-             th:classappend="${s>=75 ? 'high' : (s>=60 ? 'medium' : 'low')}"
-             class="d-score" th:text="${s}"></div>
+           th:classappend="${dec=='BUY' ? 'buy' : (dec=='WATCH' ? 'watch' : 'skip')}" class="decision-strip">
+        <div th:classappend="${dec=='BUY' ? 'buy' : (dec=='WATCH' ? 'watch' : 'skip')}" class="d-badge" th:text="${dec}"></div>
+        <div><div class="d-name" th:text="${result['name']}"></div><div style="font-size:11px;color:var(--dim)" th:text="${result['code']}"></div></div>
+        <div th:with="s=${result['score']}" th:classappend="${s>=75 ? 'high' : (s>=60 ? 'medium' : 'low')}" class="d-score" th:text="${s}"></div>
         <div class="d-meta">
           <div>Market <span th:text="${result['market']}"></span></div>
           <div>Trade Date <span th:text="${result['tradeDate']}"></span></div>
@@ -410,7 +493,7 @@
         <div class="card-body" th:with="p=${result['price']}">
           <div class="price-block">
             <div class="prow entry"><span class="prow-label">Buy Range</span><span class="prow-val accent" th:text="${p['buyRange']}"></span><span class="prow-note"></span></div>
-            <div class="prow entry"><span class="prow-label">Ideal Entry</span><span class="prow-val accent" th:text="${p['entryIdeal']}"></span><span class="prow-note">Max entry: <span th:text="${p['entryMax']}"></span></span></div>
+            <div class="prow entry"><span class="prow-label">Ideal Entry</span><span class="prow-val accent" th:text="${p['entryIdeal']}"></span><span class="prow-note">Max: <span th:text="${p['entryMax']}"></span></span></div>
             <div class="prow sl"><span class="prow-label">Stop Loss</span><span class="prow-val red" th:text="${p['stopLoss']}"></span><span class="prow-note" th:text="${p['riskReward']}"></span></div>
             <div class="prow tp1"><span class="prow-label">TP1 — 40%</span><span class="prow-val green" th:text="${p['tp1_40pct']}"></span><span class="prow-note">R:R 1:1.0 — move SL to breakeven</span></div>
             <div class="prow tp2"><span class="prow-label">TP2 — 40%</span><span class="prow-val g2" th:text="${p['tp2_40pct']}"></span><span class="prow-note">R:R 1:2.0</span></div>
@@ -435,18 +518,10 @@
       <div class="card" th:if="${result['reasons'] != null or result['warnings'] != null}">
         <div class="card-hdr"><span class="ci">◎</span>Signals</div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:.8rem;">
-          <div th:if="${result['reasons'] != null}">
-            <div class="sec-title">Reasons</div>
-            <div class="tag-list">
-              <span th:each="r : ${#strings.arraySplit(result['reasons'],',')}" class="tag reason" th:text="${r.trim()}"></span>
-            </div>
-          </div>
-          <div th:if="${result['warnings'] != null and !result['warnings'].isEmpty()}">
-            <div class="sec-title">Warnings</div>
-            <div class="tag-list">
-              <span th:each="w : ${#strings.arraySplit(result['warnings'],',')}" class="tag warning" th:text="${w.trim()}"></span>
-            </div>
-          </div>
+          <div th:if="${result['reasons'] != null}"><div class="sec-title">Reasons</div>
+            <div class="tag-list"><span th:each="r : ${#strings.arraySplit(result['reasons'],',')}" class="tag reason" th:text="${r.trim()}"></span></div></div>
+          <div th:if="${result['warnings'] != null and !result['warnings'].isEmpty()}"><div class="sec-title">Warnings</div>
+            <div class="tag-list"><span th:each="w : ${#strings.arraySplit(result['warnings'],',')}" class="tag warning" th:text="${w.trim()}"></span></div></div>
         </div>
       </div>
     </th:block>
@@ -457,29 +532,18 @@
      BATCH SCAN
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-scan-batch" th:classappend="${activeTab=='scan-batch'} ? 'active'">
-  <div><div class="pg-title">Batch <span>Scan</span></div>
-    <div class="pg-sub">POST /api/{market}/scan/batch — Up to 20 stocks</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">⊞</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/scan/batch}" onsubmit="busy(this)">
-        <div class="fg fg2">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY — Bursa Malaysia</option>
-              <option value="us" th:selected="${market=='us'}">US — NYSE / NASDAQ</option>
-            </select></div>
-          <div class="fld fld-wide"><label>Stock Codes — comma or space separated</label>
-            <textarea name="codesRaw" rows="2" placeholder="5243, 1155, 7113  |  AAPL, MSFT, GOOG" th:text="${codesRaw}"></textarea></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Run Batch</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">Batch <span>Scan</span></div><div class="pg-sub">POST /api/{market}/scan/batch — Up to 20 stocks</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">⊞</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/scan/batch}" onsubmit="busy(this)">
+      <div class="fg fg2">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY — Bursa Malaysia</option><option value="us" th:selected="${market=='us'}">US — NYSE / NASDAQ</option></select></div>
+        <div class="fld fld-wide"><label>Stock Codes — comma or space separated</label><textarea name="codesRaw" rows="2" placeholder="5243, 1155, 7113  |  AAPL, MSFT, GOOG" th:text="${codesRaw}"></textarea></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Run Batch</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'scan-batch'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div th:if="${result['summary'] != null}" th:with="s=${result['summary']}">
         <div class="sum-row">
@@ -491,22 +555,16 @@
       </div>
       <div class="card" th:if="${result['results'] != null}">
         <div class="card-hdr"><span class="ci">◈</span>Results</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Decision</th><th>Code</th><th>Name</th><th>Score</th><th>Entry</th><th>Stop Loss</th><th>TP1</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['results']}">
-              <td><span th:with="d=${r['decision']}" th:classappend="${d=='BUY' ? 'buy' : (d=='WATCH' ? 'watch' : 'skip')}" class="d-badge" style="font-size:10px;padding:.15rem .55rem;" th:text="${d}"></span></td>
-              <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td>
-              <td th:text="${r['name']}"></td>
-              <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
-              <td th:text="${r['entry']}"></td>
-              <td style="color:var(--red)" th:text="${r['sl']}"></td>
-              <td style="color:var(--green)" th:text="${r['tp1']}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Decision</th><th>Code</th><th>Name</th><th>Score</th><th>Entry</th><th>Stop Loss</th><th>TP1</th></tr></thead>
+          <tbody>
+          <tr th:each="r : ${result['results']}">
+            <td><span th:with="d=${r['decision']}" th:classappend="${d=='BUY' ? 'buy' : (d=='WATCH' ? 'watch' : 'skip')}" class="d-badge" style="font-size:10px;padding:.15rem .55rem;" th:text="${d}"></span></td>
+            <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td><td th:text="${r['name']}"></td>
+            <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
+            <td th:text="${r['entry']}"></td><td style="color:var(--red)" th:text="${r['sl']}"></td><td style="color:var(--green)" th:text="${r['tp1']}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
     </th:block>
   </th:block>
@@ -516,44 +574,26 @@
      RANGE SCAN
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-scan-range" th:classappend="${activeTab=='scan-range'} ? 'active'">
-  <div><div class="pg-title">Range <span>Scan</span></div>
-    <div class="pg-sub">GET /api/{market}/scan/range — Full market discovery</div></div>
+  <div><div class="pg-title">Range <span>Scan</span></div><div class="pg-sub">GET /api/{market}/scan/range — Full market discovery</div></div>
   <div class="info-strip">
     <div class="ii"><span class="ii-label">Best Time</span><span class="ii-val">After Market Close</span></div>
     <div class="ii"><span class="ii-label">MY Range</span><span class="ii-val">0.05 – 30.00 MYR</span></div>
     <div class="ii"><span class="ii-label">US Range</span><span class="ii-val">1.00 – 500.00 USD</span></div>
   </div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">⟂</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/scan/range}" onsubmit="busy(this)">
-        <div class="fg fg4">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Min Price</label>
-            <input type="number" name="minPrice" step="0.01" min="0.01" th:value="${minPrice!=null?minPrice:0.10}" required/></div>
-          <div class="fld"><label>Max Price</label>
-            <input type="number" name="maxPrice" step="0.01" min="0.01" th:value="${maxPrice!=null?maxPrice:1.00}" required/></div>
-          <div class="fld"><label>Min Score</label>
-            <input type="number" name="minScore" min="0" max="100" th:value="${minScore!=null?minScore:70}" required/></div>
-          <div class="fld"><label>Exchange (US)</label>
-            <select name="exchange">
-              <option value="ALL"    th:selected="${exchange=='ALL'}">ALL</option>
-              <option value="NASDAQ" th:selected="${exchange=='NASDAQ'}">NASDAQ</option>
-              <option value="NYSE"   th:selected="${exchange=='NYSE'}">NYSE</option>
-            </select></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Start Scan</button></div>
-      </form>
-    </div>
-  </div>
+  <div class="card"><div class="card-hdr"><span class="ci">⟂</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/scan/range}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Min Price</label><input type="number" name="minPrice" step="0.01" min="0.01" th:value="${minPrice!=null?minPrice:0.10}" required/></div>
+        <div class="fld"><label>Max Price</label><input type="number" name="maxPrice" step="0.01" min="0.01" th:value="${maxPrice!=null?maxPrice:1.00}" required/></div>
+        <div class="fld"><label>Min Score</label><input type="number" name="minScore" min="0" max="100" th:value="${minScore!=null?minScore:70}" required/></div>
+        <div class="fld"><label>Exchange (US)</label><select name="exchange"><option value="ALL" th:selected="${exchange=='ALL'}">ALL</option><option value="NASDAQ" th:selected="${exchange=='NASDAQ'}">NASDAQ</option><option value="NYSE" th:selected="${exchange=='NYSE'}">NYSE</option></select></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Start Scan</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'scan-range'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div class="sum-row">
         <div class="sum-cell"><div class="sv green" th:text="${result['buyCount']}"></div><div class="sl">BUY Signals</div></div>
@@ -564,24 +604,18 @@
       </div>
       <div class="card" th:if="${result['buySignals'] != null}">
         <div class="card-hdr"><span class="ci">◈</span>Buy Signals</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol Ratio</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
-              <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td>
-              <td th:text="${r['name']}"></td>
-              <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
-              <td th:text="${r['closePrice']}"></td>
-              <td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
-              <td style="color:var(--accent)"  th:text="${p!=null?p['entryIdeal']:'—'}"></td>
-              <td style="color:var(--red)"     th:text="${p!=null?p['stopLoss']:'—'}"></td>
-              <td style="color:var(--green)"   th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
-              <td style="color:#66ffaa"        th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol Ratio</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th></tr></thead>
+          <tbody><tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
+            <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td><td th:text="${r['name']}"></td>
+            <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
+            <td th:text="${r['closePrice']}"></td><td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
+            <td style="color:var(--accent)"  th:text="${p!=null?p['entryIdeal']:'—'}"></td>
+            <td style="color:var(--red)"     th:text="${p!=null?p['stopLoss']:'—'}"></td>
+            <td style="color:var(--green)"   th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
+            <td class="g2"                   th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
     </th:block>
   </th:block>
@@ -591,39 +625,21 @@
      WATCHLIST TOMORROW
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-watchlist" th:classappend="${activeTab=='watchlist'} ? 'active'">
-  <div><div class="pg-title">Watchlist <span>Tomorrow</span></div>
-    <div class="pg-sub">GET /api/{market}/watchlist/tomorrow</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">◈</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/watchlist/tomorrow}" onsubmit="busy(this)">
-        <div class="fg fg4">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Decision</label>
-            <select name="decision">
-              <option value="BUY">BUY only</option>
-              <option value="WATCH">WATCH only</option>
-              <option value="all">ALL</option>
-            </select></div>
-          <div class="fld"><label>Min Score</label>
-            <input type="number" name="minScore" value="65" min="0" max="100"/></div>
-          <div class="fld"><label>Min Price (opt)</label>
-            <input type="number" name="minPrice" step="0.01" placeholder="—"/></div>
-          <div class="fld"><label>Max Price (opt)</label>
-            <input type="number" name="maxPrice" step="0.01" placeholder="—"/></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Get Watchlist</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">Watchlist <span>Tomorrow</span></div><div class="pg-sub">GET /api/{market}/watchlist/tomorrow</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">◈</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/watchlist/tomorrow}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Decision</label><select name="decision"><option value="BUY">BUY only</option><option value="WATCH">WATCH only</option><option value="all">ALL</option></select></div>
+        <div class="fld"><label>Min Score</label><input type="number" name="minScore" value="65" min="0" max="100"/></div>
+        <div class="fld"><label>Min Price (opt)</label><input type="number" name="minPrice" step="0.01" placeholder="—"/></div>
+        <div class="fld"><label>Max Price (opt)</label><input type="number" name="maxPrice" step="0.01" placeholder="—"/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Get Watchlist</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'watchlist'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div th:if="${result['todaySummary'] != null}" th:with="s=${result['todaySummary']}">
         <div class="sum-row">
@@ -636,50 +652,35 @@
       </div>
       <div class="card" th:if="${result['buySignals'] != null}">
         <div class="card-hdr"><span class="ci" style="color:var(--green)">◉</span>BUY Signals</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol</th><th>Ideal Entry</th><th>Max Entry</th><th>Stop Loss</th><th>TP1</th><th>TP2</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
-              <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td>
-              <td th:text="${r['name']}"></td>
-              <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
-              <td th:text="${r['closePrice']}"></td>
-              <td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
-              <td style="color:var(--accent)"  th:text="${p!=null?p['entryIdeal']:'—'}"></td>
-              <td style="color:var(--dim)"     th:text="${p!=null?p['entryMax']:'—'}"></td>
-              <td style="color:var(--red)"     th:text="${p!=null?p['stopLoss']:'—'}"></td>
-              <td style="color:var(--green)"   th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
-              <td style="color:#66ffaa"        th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol</th><th>Ideal Entry</th><th>Max Entry</th><th>Stop Loss</th><th>TP1</th><th>TP2</th></tr></thead>
+          <tbody><tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
+            <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td><td th:text="${r['name']}"></td>
+            <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
+            <td th:text="${r['closePrice']}"></td><td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
+            <td style="color:var(--accent)" th:text="${p!=null?p['entryIdeal']:'—'}"></td>
+            <td style="color:var(--dim)"    th:text="${p!=null?p['entryMax']:'—'}"></td>
+            <td style="color:var(--red)"    th:text="${p!=null?p['stopLoss']:'—'}"></td>
+            <td style="color:var(--green)"  th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
+            <td class="g2"                  th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
       <div class="card" th:if="${result['watchSignals'] != null}">
         <div class="card-hdr"><span class="ci" style="color:var(--yellow)">◎</span>WATCH Signals</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol</th><th>Entry</th><th>SL</th><th>TP1</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['watchSignals']}" th:with="p=${r['price']}">
-              <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td>
-              <td th:text="${r['name']}"></td>
-              <td style="color:var(--yellow);font-weight:700;" th:text="${r['score']}"></td>
-              <td th:text="${r['closePrice']}"></td>
-              <td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
-              <td style="color:var(--accent)"  th:text="${p!=null?p['entryIdeal']:'—'}"></td>
-              <td style="color:var(--red)"     th:text="${p!=null?p['stopLoss']:'—'}"></td>
-              <td style="color:var(--green)"   th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol</th><th>Entry</th><th>SL</th><th>TP1</th></tr></thead>
+          <tbody><tr th:each="r : ${result['watchSignals']}" th:with="p=${r['price']}">
+            <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td><td th:text="${r['name']}"></td>
+            <td style="color:var(--yellow);font-weight:700;" th:text="${r['score']}"></td><td th:text="${r['closePrice']}"></td>
+            <td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
+            <td style="color:var(--accent)" th:text="${p!=null?p['entryIdeal']:'—'}"></td>
+            <td style="color:var(--red)"    th:text="${p!=null?p['stopLoss']:'—'}"></td>
+            <td style="color:var(--green)"  th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
-      <div class="empty-state" th:if="${result['message'] != null}">
-        <div class="empty-icon">◌</div>
-        <div th:text="${result['message']}"></div>
-      </div>
+      <div class="empty-state" th:if="${result['message'] != null}"><div class="empty-icon">◌</div><div th:text="${result['message']}"></div></div>
     </th:block>
   </th:block>
 </div>
@@ -688,27 +689,15 @@
      RESULT TODAY
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-result-today" th:classappend="${activeTab=='result-today'} ? 'active'">
-  <div><div class="pg-title">Today's <span>Results</span></div>
-    <div class="pg-sub">GET /api/{market}/result/today</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">▦</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/result/today}" onsubmit="busy(this)">
-        <div class="fg fg2">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY — Bursa Malaysia</option>
-              <option value="us" th:selected="${market=='us'}">US — NYSE / NASDAQ</option>
-            </select></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Fetch Today</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">Today's <span>Results</span></div><div class="pg-sub">GET /api/{market}/result/today</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">▦</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/result/today}" onsubmit="busy(this)">
+      <div class="fg fg2"><div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY — Bursa Malaysia</option><option value="us" th:selected="${market=='us'}">US — NYSE / NASDAQ</option></select></div></div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Fetch Today</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'result-today'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div th:if="${result['summary'] != null}" th:with="s=${result['summary']}">
         <div class="sum-row">
@@ -721,24 +710,18 @@
       </div>
       <div class="card" th:if="${result['buySignals'] != null}">
         <div class="card-hdr"><span class="ci" style="color:var(--green)">◉</span>BUY Signals</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol Ratio</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
-              <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td>
-              <td th:text="${r['name']}"></td>
-              <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
-              <td th:text="${r['closePrice']}"></td>
-              <td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
-              <td style="color:var(--accent)"  th:text="${p!=null?p['entryIdeal']:'—'}"></td>
-              <td style="color:var(--red)"     th:text="${p!=null?p['stopLoss']:'—'}"></td>
-              <td style="color:var(--green)"   th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
-              <td style="color:#66ffaa"        th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Code</th><th>Name</th><th>Score</th><th>Close</th><th>Vol Ratio</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th></tr></thead>
+          <tbody><tr th:each="r : ${result['buySignals']}" th:with="p=${r['price']}">
+            <td style="font-weight:600;color:var(--accent)" th:text="${r['code']}"></td><td th:text="${r['name']}"></td>
+            <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
+            <td th:text="${r['closePrice']}"></td><td style="color:var(--yellow)" th:text="${r['volumeRatio']}"></td>
+            <td style="color:var(--accent)" th:text="${p!=null?p['entryIdeal']:'—'}"></td>
+            <td style="color:var(--red)"    th:text="${p!=null?p['stopLoss']:'—'}"></td>
+            <td style="color:var(--green)"  th:text="${p!=null?p['tp1_40pct']:'—'}"></td>
+            <td class="g2"                  th:text="${p!=null?p['tp2_40pct']:'—'}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
     </th:block>
   </th:block>
@@ -748,60 +731,40 @@
      STOCK HISTORY
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-result-stock" th:classappend="${activeTab=='result-stock'} ? 'active'">
-  <div><div class="pg-title">Stock <span>History</span></div>
-    <div class="pg-sub">GET /api/{market}/result/{code}</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">⊛</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/result/stock}" onsubmit="busy(this)">
-        <div class="fg fg2">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Stock Code</label>
-            <input type="text" name="code" placeholder="5243 or AAPL" th:value="${code}" required/></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Get History</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">Stock <span>History</span></div><div class="pg-sub">GET /api/{market}/result/{code}</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">⊛</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/result/stock}" onsubmit="busy(this)">
+      <div class="fg fg2">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Stock Code</label><input type="text" name="code" placeholder="5243 or AAPL" th:value="${code}" required/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Get History</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'result-stock'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['history'] != null}">
       <div class="info-strip">
         <div class="ii"><span class="ii-label">Code</span><span class="ii-val" th:text="${result['code']}"></span></div>
         <div class="ii"><span class="ii-label">Records</span><span class="ii-val" th:text="${result['count']}"></span></div>
       </div>
-      <div class="card">
-        <div class="card-hdr"><span class="ci">◈</span>Scan History</div>
-        <div style="overflow-x:auto;">
-          <table class="result-table">
-            <thead><tr><th>Date</th><th>Decision</th><th>Score</th><th>Close</th><th>Entry</th><th>SL</th><th>TP1</th><th>RSI</th><th>ADX</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${result['history']}">
-              <td style="color:var(--dim)" th:text="${r['scanDate']}"></td>
-              <td><span th:with="d=${r['decision']}" th:classappend="${d=='BUY' ? 'buy' : (d=='WATCH' ? 'watch' : 'skip')}" class="d-badge" style="font-size:10px;padding:.15rem .55rem;" th:text="${d}"></span></td>
-              <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
-              <td th:text="${r['closePrice']}"></td>
-              <td style="color:var(--accent)" th:text="${r['entryPrice']}"></td>
-              <td style="color:var(--red)"    th:text="${r['stopLoss']}"></td>
-              <td style="color:var(--green)"  th:text="${r['targetTP1']}"></td>
-              <td th:text="${r['rsi']}"></td>
-              <td th:text="${r['adx']}"></td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="card"><div class="card-hdr"><span class="ci">◈</span>Scan History</div>
+        <div style="overflow-x:auto;"><table class="result-table">
+          <thead><tr><th>Date</th><th>Decision</th><th>Score</th><th>Close</th><th>Entry</th><th>SL</th><th>TP1</th><th>RSI</th><th>ADX</th></tr></thead>
+          <tbody><tr th:each="r : ${result['history']}">
+            <td style="color:var(--dim)" th:text="${r['scanDate']}"></td>
+            <td><span th:with="d=${r['decision']}" th:classappend="${d=='BUY' ? 'buy' : (d=='WATCH' ? 'watch' : 'skip')}" class="d-badge" style="font-size:10px;padding:.15rem .55rem;" th:text="${d}"></span></td>
+            <td th:with="s=${r['score']}" th:classappend="${s>=75 ? 'green' : (s>=60 ? 'yellow' : 'red')}" style="font-weight:700;" th:text="${s}"></td>
+            <td th:text="${r['closePrice']}"></td>
+            <td style="color:var(--accent)" th:text="${r['entryPrice']}"></td>
+            <td style="color:var(--red)"    th:text="${r['stopLoss']}"></td>
+            <td style="color:var(--green)"  th:text="${r['targetTP1']}"></td>
+            <td th:text="${r['rsi']}"></td><td th:text="${r['adx']}"></td>
+          </tr></tbody>
+        </table></div>
       </div>
     </th:block>
-    <div class="empty-state" th:if="${result['message'] != null}">
-      <div class="empty-icon">◌</div>
-      <div th:text="${result['message']}"></div>
-    </div>
+    <div class="empty-state" th:if="${result['message'] != null}"><div class="empty-icon">◌</div><div th:text="${result['message']}"></div></div>
   </th:block>
 </div>
 
@@ -809,91 +772,103 @@
      MA CALCULATOR
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-ma-calc" th:classappend="${activeTab=='ma-calc'} ? 'active'">
-  <div><div class="pg-title">MA <span>Calculator</span></div>
-    <div class="pg-sub">POST /api/{market}/ma/calculation</div></div>
+  <div><div class="pg-title">MA <span>Calculator</span></div><div class="pg-sub">POST /api/{market}/ma/calculation</div></div>
   <div class="info-strip">
-    <div class="ii"><span class="ii-label">≤ 5% above MA20</span><span class="ii-val" style="color:var(--green)">🟢 Low Risk</span></div>
-    <div class="ii"><span class="ii-label">5–10% above MA20</span><span class="ii-val" style="color:var(--yellow)">🟡 Medium Risk</span></div>
-    <div class="ii"><span class="ii-label">&gt; 10% above MA20</span><span class="ii-val" style="color:var(--red)">🔴 High Risk — SKIP</span></div>
+    <div class="ii"><span class="ii-label">≤ 2% above MA20</span><span class="ii-val" style="color:var(--green)">🎯 Ideal Zone</span></div>
+    <div class="ii"><span class="ii-label">2–5% above MA20</span><span class="ii-val" style="color:var(--accent)">🟢 Acceptable</span></div>
+    <div class="ii"><span class="ii-label">5–10% above MA20</span><span class="ii-val" style="color:var(--yellow)">🟡 Stretched</span></div>
+    <div class="ii"><span class="ii-label">&gt; 10% above MA20</span><span class="ii-val" style="color:var(--red)">🔴 Overextended — SKIP</span></div>
   </div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">∿</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/ma/calculation}" onsubmit="busy(this)">
-        <div class="fg fg5">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Timeframe</label>
-            <select name="timeframe">
-              <option value="15M"    th:selected="${timeframe=='15M'}">15M</option>
-              <option value="30M"    th:selected="${timeframe=='30M'}">30M</option>
-              <option value="1H"     th:selected="${timeframe=='1H'}">1H</option>
-              <option value="4H"     th:selected="${timeframe=='4H'}">4H</option>
-              <option value="DAILY"  th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option>
-              <option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
-            </select></div>
-          <div class="fld"><label>Market Price</label>
-            <input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="e.g. 1.42" required/></div>
-          <div class="fld"><label>MA5</label>
-            <input type="number" name="ma5" step="0.0001" th:value="${ma5}" placeholder="e.g. 1.38" required/></div>
-          <div class="fld"><label>MA20</label>
-            <input type="number" name="ma20" step="0.0001" th:value="${ma20}" placeholder="e.g. 1.31" required/></div>
-          <div class="fld"><label>MA50</label>
-            <input type="number" name="ma50" step="0.0001" th:value="${ma50}" placeholder="e.g. 1.25" required/></div>
-          <div class="fld"><label>MA200</label>
-            <input type="number" name="ma200" step="0.0001" th:value="${ma200}" placeholder="e.g. 1.10" required/></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Calculate</button></div>
-      </form>
-    </div>
-  </div>
+  <div class="card"><div class="card-hdr"><span class="ci">∿</span>Parameters — 5 Filter Stack</div><div class="card-body">
+    <form method="post" th:action="@{/ui/ma/calculation}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Timeframe</label><select name="timeframe">
+          <option value="15M"    th:selected="${timeframe=='15M'}">15M</option>
+          <option value="30M"    th:selected="${timeframe=='30M'}">30M</option>
+          <option value="1H"     th:selected="${timeframe=='1H'}">1H</option>
+          <option value="4H"     th:selected="${timeframe=='4H'}">4H</option>
+          <option value="DAILY"  th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option>
+          <option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
+        </select></div>
+        <div class="fld"><label>Market Price</label><input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.42" required/></div>
+        <div class="fld"><label>MA5</label><input type="number" name="ma5" step="0.0001" th:value="${ma5}" placeholder="1.38" required/></div>
+        <div class="fld"><label>MA20</label><input type="number" name="ma20" step="0.0001" th:value="${ma20}" placeholder="1.31" required/></div>
+        <div class="fld"><label>MA50</label><input type="number" name="ma50" step="0.0001" th:value="${ma50}" placeholder="1.25" required/></div>
+        <div class="fld"><label>MA200</label><input type="number" name="ma200" step="0.0001" th:value="${ma200}" placeholder="1.10" required/></div>
+        <div class="fld"><label>RSI14 (optional)</label><input type="number" name="rsi14" step="0.1" min="0" max="100" th:value="${rsi14}" placeholder="58.5"/></div>
+        <div class="fld"><label>ATR14 (optional)</label><input type="number" name="atr14" step="0.0001" th:value="${atr14}" placeholder="0.018"/></div>
+        <div class="fld"><label>Volume Ratio (opt)</label><input type="number" name="volumeRatio" step="0.01" min="0" th:value="${volumeRatio}" placeholder="1.99"/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Calculate</button></div>
+    </form>
+  </div></div>
+
   <th:block th:if="${result != null and activeTab == 'ma-calc'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div th:with="dec=${result['decision']},risk=${result['risk']}"
-           th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}"
-           class="decision-strip">
+           th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}" class="decision-strip">
         <div th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}" class="d-badge" th:text="${dec}"></div>
         <div th:if="${risk!=null}">
           <span th:classappend="${#strings.contains(risk,'Low') ? 'risk-low' : (#strings.contains(risk,'Medium') ? 'risk-medium' : 'risk-high')}"
                 class="risk-pill" th:text="${risk}"></span>
         </div>
         <div th:if="${result['signalQuality'] != null}">
-          <span class="stack-badge" th:text="'Signal: ' + ${result['signalQuality']}"></span>
+          <span class="stack-badge" th:text="'Signal: ' + ${result['signalQuality']} + '  (' + ${result['signalScore']} + ')'"></span>
+        </div>
+        <div th:if="${result['positionSize'] != null}">
+          <span th:classappend="${result['positionSize']=='100%' ? 'risk-low' : (result['positionSize']=='0%' ? 'risk-high' : 'risk-medium')}"
+                class="risk-pill" th:text="'Size: ' + ${result['positionSize']}"></span>
         </div>
         <div class="d-meta" th:if="${result['input'] != null}" th:with="inp=${result['input']}">
           <div>Price <span th:text="${inp['marketPrice']}"></span></div>
-          <div>MA5 <span th:text="${inp['ma5']}"></span> | MA20 <span th:text="${inp['ma20']}"></span></div>
-          <div>Timeframe <span th:text="${inp['timeframe']}"></span> — Hold <span th:text="${inp['holdDuration']}"></span></div>
+          <div>MA5 <span th:text="${inp['ma5']}"></span> | MA20 <span th:text="${inp['ma20']}"></span> | MA50 <span th:text="${inp['ma50']}"></span></div>
+          <div>TF <span th:text="${inp['timeframe']}"></span> · Hold <span th:text="${inp['holdDuration']}"></span></div>
         </div>
       </div>
-      <div class="advice-box red" th:if="${result['reason'] != null}" th:text="${result['reason']}"></div>
+
+      <div class="advice-box red"  th:if="${result['reason'] != null}" th:text="${result['reason']}"></div>
       <div th:if="${result['advice'] != null}"
            th:classappend="${#strings.contains(result['risk'],'Low') ? 'green' : (#strings.contains(result['risk'],'Medium') ? 'yellow' : 'red')}"
            class="advice-box" th:text="${result['advice']}"></div>
-      <!-- Warnings & Confluences -->
+
+      <!-- 5 Filter Steps -->
+      <div class="card" th:if="${result['filterSteps'] != null}" th:with="fs=${result['filterSteps']}">
+        <div class="card-hdr"><span class="ci">✓</span>5-Filter Stack Audit</div>
+        <div class="card-body">
+          <div class="check-list">
+            <div class="check-row" th:each="entry : ${fs.entrySet()}">
+              <span th:with="s=${entry.value['status']}"
+                    th:classappend="${#strings.contains(s,'PASS') ? 'check-pass' : (#strings.contains(s,'NEUTRAL') ? '' : 'check-fail')}"
+                    th:text="${#strings.contains(s,'PASS') ? '✔' : (#strings.contains(s,'NEUTRAL') ? '○' : '✘')}"></span>
+              <span class="check-label" th:text="${entry.value['name']}"></span>
+              <span style="color:var(--dim);font-size:10px;margin-left:.3rem;" th:text="${entry.value['rule'] != null ? '— ' + entry.value['rule'] : ''}"></span>
+              <span style="margin-left:auto;font-size:11px;"
+                    th:with="s=${entry.value['status']}"
+                    th:classappend="${#strings.contains(s,'PASS') ? 'check-pass' : (#strings.contains(s,'NEUTRAL') ? '' : 'check-fail')}"
+                    th:text="${entry.value['result'] != null ? entry.value['result'] + ' · ' + s : s}"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signals -->
       <div class="card" th:if="${result['warnings'] != null or result['confluences'] != null}">
         <div class="card-hdr"><span class="ci">◎</span>Signals</div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:.8rem;">
           <div th:if="${result['confluences'] != null and !result['confluences'].isEmpty()}">
             <div class="sec-title">Confluences</div>
-            <div class="tag-list">
-              <span th:each="c : ${result['confluences']}" class="tag reason" th:text="${c}"></span>
-            </div>
+            <div class="tag-list"><span th:each="c : ${result['confluences']}" class="tag reason" th:text="${c}"></span></div>
           </div>
           <div th:if="${result['warnings'] != null and !result['warnings'].isEmpty()}">
             <div class="sec-title">Warnings</div>
-            <div class="tag-list">
-              <span th:each="w : ${result['warnings']}" class="tag warning" th:text="${w}"></span>
-            </div>
+            <div class="tag-list"><span th:each="w : ${result['warnings']}" class="tag warning" th:text="${w}"></span></div>
           </div>
         </div>
       </div>
+
+      <!-- Calculation -->
       <div class="card" th:if="${result['calculation'] != null}" th:with="c=${result['calculation']}">
         <div class="card-hdr"><span class="ci">∑</span>Calculation</div>
         <div class="card-body">
@@ -907,29 +882,25 @@
           </div>
         </div>
       </div>
+
       <!-- MA Alignment -->
       <div class="card" th:if="${result['maAlignment'] != null}" th:with="ma=${result['maAlignment']}">
         <div class="card-hdr"><span class="ci">≋</span>MA Alignment</div>
         <div class="card-body">
           <div class="advice-box" style="margin-bottom:.8rem;" th:text="${ma['trend']}"></div>
           <div class="stat-grid">
-            <div class="stat-cell"><div class="stat-label">Price &gt; MA5</div>
-              <div th:classappend="${ma['priceAboveMA5']} ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA5']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">Price &gt; MA20</div>
-              <div th:classappend="${ma['priceAboveMA20']} ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA20']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">Price &gt; MA50</div>
-              <div th:classappend="${ma['priceAboveMA50']} ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA50']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">Price &gt; MA200</div>
-              <div th:classappend="${ma['priceAboveMA200']} ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA200']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">MA5 &gt; MA20</div>
-              <div th:classappend="${ma['ma5AboveMA20']} ? 'green' : 'red'" class="stat-value" th:text="${ma['ma5AboveMA20']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">MA20 &gt; MA50</div>
-              <div th:classappend="${ma['ma20AboveMA50']} ? 'green' : 'red'" class="stat-value" th:text="${ma['ma20AboveMA50']} ? '✔ Yes' : '✘ No'"></div></div>
-            <div class="stat-cell"><div class="stat-label">MA50 &gt; MA200</div>
-              <div th:classappend="${ma['ma50AboveMA200']} ? 'green' : 'red'" class="stat-value" th:text="${ma['ma50AboveMA200']} ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">Price &gt; MA5</div>   <div th:classappend="${ma['priceAboveMA5']}   ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA5']}   ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">Price &gt; MA20</div>  <div th:classappend="${ma['priceAboveMA20']}  ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA20']}  ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">Price &gt; MA50</div>  <div th:classappend="${ma['priceAboveMA50']}  ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA50']}  ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">Price &gt; MA200</div> <div th:classappend="${ma['priceAboveMA200']} ? 'green' : 'red'" class="stat-value" th:text="${ma['priceAboveMA200']} ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">MA5 &gt; MA20</div>    <div th:classappend="${ma['ma5AboveMA20']}    ? 'green' : 'red'" class="stat-value" th:text="${ma['ma5AboveMA20']}    ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">MA20 &gt; MA50</div>   <div th:classappend="${ma['ma20AboveMA50']}   ? 'green' : 'red'" class="stat-value" th:text="${ma['ma20AboveMA50']}   ? '✔ Yes' : '✘ No'"></div></div>
+            <div class="stat-cell"><div class="stat-label">MA50 &gt; MA200</div>  <div th:classappend="${ma['ma50AboveMA200']}  ? 'green' : 'red'" class="stat-value" th:text="${ma['ma50AboveMA200']}  ? '✔ Yes' : '✘ No'"></div></div>
           </div>
         </div>
       </div>
+
+      <!-- Trade Plan -->
       <div class="card" th:if="${result['tradePlan'] != null}" th:with="tp=${result['tradePlan']}">
         <div class="card-hdr"><span class="ci">$</span>Trade Plan</div>
         <div class="card-body">
@@ -948,316 +919,175 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     MA TREND DISTANCE  ← NEW
+     MA TREND DISTANCE
 ═══════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-ma-trend-distance"
-     th:classappend="${activeTab=='ma-trend-distance'} ? 'active'">
+<div class="tab-panel" id="tab-ma-trend-distance" th:classappend="${activeTab=='ma-trend-distance'} ? 'active'">
+  <div><div class="pg-title">Trend <span>Distance</span></div><div class="pg-sub">POST /api/{market}/ma/trend-distance</div></div>
 
-  <div>
-    <div class="pg-title">Trend <span>Distance</span></div>
-    <div class="pg-sub">POST /api/{market}/ma/trend-distance</div>
-  </div>
-<!-- Grade scale -->
-<div class="info-strip" style="flex-direction:column;gap:1rem;">
-
-  <!-- Formula 1 -->
-  <div style="width:100%;">
-    <div class="ii" style="margin-bottom:.5rem;">
-      <span class="ii-label">Formula 1</span>
-      <!-- <span class="ii-val">((Price − MA20) / MA20) × 100</span> -->
-      <span style="font-size:10px;color:var(--dim);margin-top:.15rem;">
-        "How far is price stretched from its 20-day average? The further it runs, the higher the snapback risk."
-      </span>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
-        <tr>
+  <div class="info-strip" style="flex-direction:column;gap:1rem;">
+    <div style="width:100%;">
+      <div class="ii" style="margin-bottom:.5rem;">
+        <span class="ii-label">Formula 1 — ((Price − MA20) / MA20) × 100</span>
+        <span style="font-size:10px;color:var(--dim);margin-top:.15rem;">"How far is price stretched from its 20-day average? The further it runs, the higher the snapback risk."</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
           <th style="text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;width:90px;">Result</th>
           <th style="text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;">Meaning</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--red);font-weight:600;">Negative</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">Price below MA20 — downtrend, support broken. <strong style="color:var(--red)">SKIP.</strong></td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--green);font-weight:600;">0% – 2%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">🎯 <strong style="color:var(--green)">Ideal zone.</strong> Price just above MA20 — rubber band not stretched, best entry.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--accent);font-weight:600;">2% – 5%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">🟢 <strong style="color:var(--accent)">Acceptable.</strong> Slightly stretched — still valid, consider reducing size.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--yellow);font-weight:600;">5% – 10%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">🟡 <strong style="color:var(--yellow)">Overheated.</strong> High pullback risk back to MA20 — reduce size 50%.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;color:var(--red);font-weight:600;">&gt; 10%</td>
-          <td style="padding:.3rem .6rem;color:var(--dim);">🔴 <strong style="color:var(--red)">Extremely extended.</strong> Do not chase — wait for price to reset to MA20.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div style="height:1px;background:var(--border);width:100%;"></div>
-
-  <!-- Formula 2 -->
-  <div style="width:100%;">
-    <div class="ii" style="margin-bottom:.5rem;">
-      <span class="ii-label">Formula 2</span>
-      <!-- <span class="ii-val">((MA20 − MA50) / MA50) × 100</span> -->
-      <span style="font-size:10px;color:var(--dim);margin-top:.15rem;">
-        "How mature is the current uptrend? Like a spring — freshly coiled at 1–3%, fully uncoiled and exhausted at &gt;10%."
-      </span>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--red);font-weight:600;">Negative</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">Price below MA20 — support broken. <strong style="color:var(--red)">SKIP.</strong></td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:600;">0% – 2%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">🎯 <strong style="color:var(--green)">Ideal zone.</strong> Price just above MA20 — best entry.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--accent);font-weight:600;">2% – 5%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">🟢 <strong style="color:var(--accent)">Acceptable.</strong> Slightly stretched — reduce size.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--yellow);font-weight:600;">5% – 10%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">🟡 <strong style="color:var(--yellow)">Overheated.</strong> Reduce size 50%.</td></tr>
+          <tr><td style="padding:.3rem .6rem;color:var(--red);font-weight:600;">&gt; 10%</td><td style="padding:.3rem .6rem;color:var(--dim);">🔴 <strong style="color:var(--red)">Do not chase</strong> — wait for reset to MA20.</td></tr>
+        </tbody>
+      </table>
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
-        <tr>
+    <div style="height:1px;background:var(--border);width:100%;"></div>
+    <div style="width:100%;">
+      <div class="ii" style="margin-bottom:.5rem;">
+        <span class="ii-label">Formula 2 — ((MA20 − MA50) / MA50) × 100</span>
+        <span style="font-size:10px;color:var(--dim);margin-top:.15rem;">"How mature is the trend? Like a spring — freshly coiled at 1–3%, fully uncoiled and exhausted at &gt;10%."</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
           <th style="text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;width:90px;">Result</th>
           <th style="text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;width:110px;">Grade</th>
           <th style="text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase;">Meaning</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--red);font-weight:600;">Negative</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--red);font-weight:700;">BEARISH 🔻</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">MA20 below MA50 — downtrend active. No long trades.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);font-weight:600;">0% – 1%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);font-weight:700;">FLAT ➡️</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">Just crossed — wait for MA gap to widen before entering.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--green);font-weight:600;">1% – 3%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--green);font-weight:700;">S++ 🚀</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);"><strong style="color:var(--green)">Best zone.</strong> Trend just born — maximum energy remaining, highest win rate. Full position.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--accent);font-weight:600;">3% – 5%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--accent);font-weight:700;">A ✅</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">Healthy trend — still good energy, valid entry at full or reduced size.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--yellow);font-weight:600;">5% – 8%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--yellow);font-weight:700;">B ⚠️</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">Maturing trend — reduce position size, tighten stop loss.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--orange);font-weight:600;">8% – 10%</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--orange);font-weight:700;">C 🟡</td>
-          <td style="padding:.3rem .6rem;border-bottom:1px solid rgba(30,45,61,.4);color:var(--dim);">Late stage — 50% size max, very tight SL, take profit quickly.</td>
-        </tr>
-        <tr>
-          <td style="padding:.3rem .6rem;color:var(--red);font-weight:600;">&gt; 10%</td>
-          <td style="padding:.3rem .6rem;color:var(--red);font-weight:700;">EXHAUSTED 🛑</td>
-          <td style="padding:.3rem .6rem;color:var(--dim);"><strong style="color:var(--red)">Do not enter.</strong> Spring fully uncoiled — trend topping, high reversal risk.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div style="height:1px;background:var(--border);width:100%;"></div>
-
-  <!-- Combined signal quick ref -->
-  <div style="width:100%;">
-    <div class="ii" style="margin-bottom:.5rem;">
-      <span class="ii-label">Combined Signal</span>
-      <span class="ii-val">Formula 2 tells you WHEN · Formula 1 tells you WHERE</span>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--red);font-weight:600;">Negative</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--red);font-weight:700;">BEARISH 🔻</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">MA20 below MA50 — downtrend. No longs.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);font-weight:600;">0% – 1%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);font-weight:700;">FLAT ➡️</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">Just crossed — wait for gap to widen.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:600;">1% – 3%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--green);font-weight:700;">S++ 🚀</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);"><strong style="color:var(--green)">Best.</strong> Fresh trend — maximum energy, highest win rate.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--accent);font-weight:600;">3% – 5%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--accent);font-weight:700;">A ✅</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">Healthy trend — good entry.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--yellow);font-weight:600;">5% – 8%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--yellow);font-weight:700;">B ⚠️</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">Maturing — reduce size, tighten SL.</td></tr>
+          <tr><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--orange);font-weight:600;">8% – 10%</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--orange);font-weight:700;">C 🟡</td><td style="padding:.3rem .6rem;border-bottom:1px solid var(--border);color:var(--dim);">Late stage — 50% max, very tight SL.</td></tr>
+          <tr><td style="padding:.3rem .6rem;color:var(--red);font-weight:600;">&gt; 10%</td><td style="padding:.3rem .6rem;color:var(--red);font-weight:700;">EXHAUSTED 🛑</td><td style="padding:.3rem .6rem;color:var(--dim);"><strong style="color:var(--red)">Skip.</strong> Trend topping — high reversal risk.</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px;padding:.6rem .8rem;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:5px;">
-        <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:.3rem;">🏆 Best Setup</div>
-        <div style="font-size:11px;color:var(--text);line-height:1.6;">
-          F2 = S++ (1–3%) <span style="color:var(--dim)">+</span> F1 = 0–2%<br/>
-          <span style="color:var(--dim)">Fresh trend · Price at MA20 · Full position</span>
+    <div style="height:1px;background:var(--border);width:100%;"></div>
+    <div style="width:100%;">
+      <div class="ii" style="margin-bottom:.5rem;"><span class="ii-label">Combined Signal</span><span class="ii-val">F2 = WHEN · F1 = WHERE</span></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;padding:.6rem .8rem;background:rgba(0,137,77,.07);border:1px solid rgba(0,137,77,.2);border-radius:5px;">
+          <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:.3rem;">🏆 Best Setup</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.6;">F2 = S++ (1–3%) + F1 = 0–2%<br/><span style="color:var(--dim)">Fresh trend · Price at MA20 · Full position</span></div>
         </div>
-      </div>
-      <div style="flex:1;min-width:200px;padding:.6rem .8rem;background:rgba(255,71,87,.06);border:1px solid rgba(255,71,87,.2);border-radius:5px;">
-        <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:.3rem;">🚫 Worst Chase</div>
-        <div style="font-size:11px;color:var(--text);line-height:1.6;">
-          F2 = EXHAUSTED (&gt;10%) <span style="color:var(--dim)">+</span> F1 = &gt;10%<br/>
-          <span style="color:var(--dim)">Old trend · Price far from MA20 · Skip</span>
+        <div style="flex:1;min-width:200px;padding:.6rem .8rem;background:rgba(204,34,51,.07);border:1px solid rgba(204,34,51,.2);border-radius:5px;">
+          <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:.3rem;">🚫 Worst Chase</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.6;">F2 = EXHAUSTED + F1 = &gt;10%<br/><span style="color:var(--dim)">Old trend · Price far from MA20 · Skip</span></div>
         </div>
       </div>
     </div>
   </div>
 
-</div>
+  <div class="card"><div class="card-hdr"><span class="ci">⇌</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/ma/trend-distance}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY — Bursa</option><option value="us" th:selected="${market=='us'}">US — NYSE/NASDAQ</option></select></div>
+        <div class="fld"><label>Timeframe</label><select name="timeframe">
+          <option value="15M"    th:selected="${timeframe=='15M'}">15M</option>
+          <option value="30M"    th:selected="${timeframe=='30M'}">30M</option>
+          <option value="1H"     th:selected="${timeframe=='1H'}">1H</option>
+          <option value="4H"     th:selected="${timeframe=='4H'}">4H</option>
+          <option value="DAILY"  th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option>
+          <option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
+        </select></div>
+        <div class="fld"><label>Ticker (optional)</label><input type="text" name="ticker" th:value="${ticker}" placeholder="AAPL"/></div>
+        <div class="fld"><label>Market Price</label><input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.2150" required/></div>
+        <div class="fld"><label>MA20</label><input type="number" name="ma20" step="0.0001" th:value="${ma20}" placeholder="1.2050" required/></div>
+        <div class="fld"><label>MA50</label><input type="number" name="ma50" step="0.0001" th:value="${ma50}" placeholder="1.1820" required/></div>
+        <div class="fld"><label>RSI14 (optional)</label><input type="number" name="rsi14" step="0.1" min="0" max="100" th:value="${rsi14}" placeholder="58.5"/></div>
+        <div class="fld"><label>Volume Ratio (opt)</label><input type="number" name="volumeRatio" step="0.01" th:value="${volumeRatio}" placeholder="1.99"/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Analyse</button></div>
+    </form>
+  </div></div>
 
-  <!-- Form -->
-  <div class="card">
-    <div class="card-hdr"><span class="ci">⇌</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/ma/trend-distance}" onsubmit="busy(this)">
-        <div class="fg fg4">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY — Bursa</option>
-              <option value="us" th:selected="${market=='us'}">US — NYSE/NASDAQ</option>
-            </select></div>
-          <div class="fld"><label>Timeframe</label>
-            <select name="timeframe">
-              <option value="15M"    th:selected="${timeframe=='15M'}">15M</option>
-              <option value="30M"    th:selected="${timeframe=='30M'}">30M</option>
-              <option value="1H"     th:selected="${timeframe=='1H'}">1H</option>
-              <option value="4H"     th:selected="${timeframe=='4H'}">4H</option>
-              <option value="DAILY"  th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option>
-              <option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
-            </select></div>
-          <div class="fld"><label>Ticker (optional)</label>
-            <input type="text" name="ticker" th:value="${ticker}" placeholder="e.g. AAPL"/></div>
-          <div class="fld"><label>Market Price</label>
-            <input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.2150" required/></div>
-          <div class="fld"><label>MA20</label>
-            <input type="number" name="ma20" step="0.0001" th:value="${ma20}" placeholder="1.2050" required/></div>
-          <div class="fld"><label>MA50</label>
-            <input type="number" name="ma50" step="0.0001" th:value="${ma50}" placeholder="1.1820" required/></div>
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-primary" type="submit">▶ Analyse</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Results -->
   <th:block th:if="${result != null and activeTab == 'ma-trend-distance'}">
-
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span>
-      <div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
-
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
-
-      <!-- Decision strip -->
-      <div th:with="dec=${result['decision']}, grade=${result['grade']}"
+      <div th:with="dec=${result['decision']},grade=${result['grade']}"
            th:classappend="${#strings.contains(dec,'PROCEED') ? 'proceed' : (#strings.contains(dec,'WAIT') ? 'watch' : 'skip')}"
            class="decision-strip">
-
-        <!-- Grade badge -->
         <div th:classappend="${grade=='S++' ? 'grade-spp' : (grade=='A' ? 'grade-a' : (grade=='B' ? 'grade-b' : (grade=='C' ? 'grade-c' : 'grade-x')))}"
-             class="grade-badge"
-             th:text="${result['emoji'] + ' ' + grade}"></div>
-
+             class="grade-badge" th:text="${result['emoji'] + ' ' + grade}"></div>
         <div>
           <div class="d-name" th:text="${result['ticker'] != null ? result['ticker'] : result['timeframe']}"></div>
           <div style="font-size:11px;color:var(--dim)" th:text="${result['timeframe']}"></div>
         </div>
-
+        <div th:if="${result['signalQuality'] != null}">
+          <span class="stack-badge" th:text="'Score: ' + ${result['signalScore']} + ' · ' + ${result['signalQuality']}"></span>
+        </div>
         <div class="d-meta">
           <div>Action <span th:text="${dec}"></span></div>
           <div th:if="${result['entryGuidance'] != null}">
-            Size
-            <span th:classappend="${result['entryGuidance']['positionSize']=='100%' ? 'green' : (result['entryGuidance']['positionSize']=='0%' ? 'red' : 'yellow')}"
-                  th:text="${result['entryGuidance']['positionSize']}"></span>
+            Size <span th:classappend="${result['entryGuidance']['positionSize']=='100%' ? 'green' : (result['entryGuidance']['positionSize']=='0%' ? 'red' : 'yellow')}"
+                       th:text="${result['entryGuidance']['positionSize']}"></span>
           </div>
         </div>
       </div>
 
-      <!-- Summary advice -->
       <div th:if="${result['summary'] != null}"
            th:classappend="${#strings.contains(result['decision'],'PROCEED') ? 'green' : (#strings.contains(result['decision'],'WAIT') ? 'yellow' : 'red')}"
-           class="advice-box" th:text="${result['summary']}">
+           class="advice-box" th:text="${result['summary']}"></div>
+
+      <!-- Confluences / Warnings -->
+      <div class="card" th:if="${(result['confluences'] != null and !result['confluences'].isEmpty()) or (result['warnings'] != null and !result['warnings'].isEmpty())}">
+        <div class="card-hdr"><span class="ci">◎</span>Signals</div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:.8rem;">
+          <div th:if="${result['confluences'] != null and !result['confluences'].isEmpty()}">
+            <div class="sec-title">Confluences</div>
+            <div class="tag-list"><span th:each="c : ${result['confluences']}" class="tag reason" th:text="${c}"></span></div>
+          </div>
+          <div th:if="${result['warnings'] != null and !result['warnings'].isEmpty()}">
+            <div class="sec-title">Warnings</div>
+            <div class="tag-list"><span th:each="w : ${result['warnings']}" class="tag warning" th:text="${w}"></span></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Formula cards -->
       <div class="formula-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
-
-        <!-- Formula 1: Price vs MA20 -->
         <div class="card" th:if="${result['formula1'] != null}" th:with="f1=${result['formula1']}">
           <div class="card-hdr"><span class="ci">∑</span>Formula 1 — Price vs MA20</div>
-          <div class="card-body">
-            <div class="stat-grid">
-             <!--  <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Formula</div>
-                <div class="stat-value" style="font-size:10px;color:var(--dim)" th:text="${f1['formula']}"></div>
-              </div> -->
-              <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Calculation</div>
-                <div class="stat-value" style="font-size:11px;" th:text="${f1['calculation']}"></div>
-              </div>
-              <div class="stat-cell" style="grid-column:1/-1;text-align:center">
-                <div class="stat-label">Result</div>
-                <div class="formula-result" th:text="${f1['result']}"></div>
-              </div>
-              <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Zone</div>
-                <div class="stat-value" th:text="${f1['emoji'] + ' ' + f1['zone']}"></div>
-                <div class="stat-sub" th:text="${f1['meaning']}"></div>
-              </div>
-            </div>
-          </div>
+          <div class="card-body"><div class="stat-grid">
+            <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Calculation</div><div class="stat-value" style="font-size:11px;" th:text="${f1['calculation']}"></div></div>
+            <div class="stat-cell" style="grid-column:1/-1;text-align:center"><div class="stat-label">Result</div><div class="formula-result" th:text="${f1['result']}"></div></div>
+            <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Zone</div><div class="stat-value" th:text="${f1['emoji'] + ' ' + f1['zone']}"></div><div class="stat-sub" th:text="${f1['meaning']}"></div></div>
+          </div></div>
         </div>
-
-        <!-- Formula 2: MA20 vs MA50 -->
         <div class="card" th:if="${result['formula2'] != null}" th:with="f2=${result['formula2']}">
           <div class="card-hdr"><span class="ci">⇌</span>Formula 2 — Trend Maturity</div>
-          <div class="card-body">
-            <div class="stat-grid">
-              <!--  <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Formula</div>
-                <div class="stat-value" style="font-size:10px;color:var(--dim)" th:text="${f2['formula']}"></div>
-              </div> -->
-              <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Calculation</div>
-                <div class="stat-value" style="font-size:11px;" th:text="${f2['calculation']}"></div>
-              </div>
-              <div class="stat-cell" style="grid-column:1/-1;text-align:center">
-                <div class="stat-label">Result</div>
-                <div class="formula-result" th:text="${f2['result']}"></div>
-              </div>
-              <div class="stat-cell" style="grid-column:1/-1">
-                <div class="stat-label">Grade</div>
-                <div th:classappend="${f2['grade']=='S++' ? 'grade-spp' : (f2['grade']=='A' ? 'grade-a' : (f2['grade']=='B' ? 'grade-b' : (f2['grade']=='C' ? 'grade-c' : 'grade-x')))}"
-                     class="grade-badge" style="display:inline-flex;margin-top:.2rem;"
-                     th:text="${f2['emoji'] + ' ' + f2['grade']}"></div>
-                <div class="stat-sub" th:text="${f2['meaning']}"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- end formula grid -->
-
-      <!-- Entry Guidance -->
-      <div class="card" th:if="${result['entryGuidance'] != null}" th:with="eg=${result['entryGuidance']}">
-        <div class="card-hdr"><span class="ci">◎</span>Entry Guidance</div>
-        <div class="card-body">
-          <div class="stat-grid">
-            <div class="stat-cell">
-              <div class="stat-label">Action</div>
-              <div class="stat-value" th:text="${eg['action']}"></div>
-            </div>
-            <div class="stat-cell">
-              <div class="stat-label">Position Size</div>
-              <div th:classappend="${eg['positionSize']=='100%' ? 'green' : (eg['positionSize']=='0%' ? 'red' : 'yellow')}"
-                   class="stat-value" th:text="${eg['positionSize']}"></div>
-            </div>
-            <div class="stat-cell">
-              <div class="stat-label">Hold Duration</div>
-              <div class="stat-value accent" th:text="${eg['holdDuration']}"></div>
-            </div>
-            <div class="stat-cell">
-              <div class="stat-label">Wait For</div>
-              <div class="stat-value" style="font-size:11px;" th:text="${eg['waitFor']}"></div>
-            </div>
+          <div class="card-body"><div class="stat-grid">
+            <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Calculation</div><div class="stat-value" style="font-size:11px;" th:text="${f2['calculation']}"></div></div>
+            <div class="stat-cell" style="grid-column:1/-1;text-align:center"><div class="stat-label">Result</div><div class="formula-result" th:text="${f2['result']}"></div></div>
             <div class="stat-cell" style="grid-column:1/-1">
-              <div class="stat-label">Note</div>
-              <div class="stat-value" style="font-size:11px;color:var(--dim);" th:text="${eg['note']}"></div>
+              <div class="stat-label">Grade</div>
+              <div th:classappend="${f2['grade']=='S++' ? 'grade-spp' : (f2['grade']=='A' ? 'grade-a' : (f2['grade']=='B' ? 'grade-b' : (f2['grade']=='C' ? 'grade-c' : 'grade-x')))}"
+                   class="grade-badge" style="display:inline-flex;margin-top:.2rem;" th:text="${f2['emoji'] + ' ' + f2['grade']}"></div>
+              <div class="stat-sub" th:text="${f2['meaning']}"></div>
             </div>
-            <div class="stat-cell" style="grid-column:1/-1">
-              <div class="stat-label">Grade Scale</div>
-              <div class="stat-value" style="font-size:10px;color:var(--muted);" th:text="${eg['gradeScale']}"></div>
-            </div>
-          </div>
+          </div></div>
         </div>
       </div>
 
+      <div class="card" th:if="${result['entryGuidance'] != null}" th:with="eg=${result['entryGuidance']}">
+        <div class="card-hdr"><span class="ci">◎</span>Entry Guidance</div>
+        <div class="card-body"><div class="stat-grid">
+          <div class="stat-cell"><div class="stat-label">Action</div><div class="stat-value" th:text="${eg['action']}"></div></div>
+          <div class="stat-cell"><div class="stat-label">Position Size</div>
+            <div th:classappend="${eg['positionSize']=='100%' ? 'green' : (eg['positionSize']=='0%' ? 'red' : 'yellow')}" class="stat-value" th:text="${eg['positionSize']}"></div></div>
+          <div class="stat-cell"><div class="stat-label">RSI Status</div><div class="stat-value" style="font-size:11px;" th:text="${eg['rsiStatus']}"></div></div>
+          <div class="stat-cell"><div class="stat-label">Volume Status</div><div class="stat-value" style="font-size:11px;" th:text="${eg['volumeStatus']}"></div></div>
+          <div class="stat-cell"><div class="stat-label">Hold Duration</div><div class="stat-value accent" th:text="${eg['holdDuration']}"></div></div>
+          <div class="stat-cell"><div class="stat-label">Wait For</div><div class="stat-value" style="font-size:11px;" th:text="${eg['waitFor']}"></div></div>
+          <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Filter Summary</div><div class="stat-value" style="font-size:12px;" th:text="${eg['filterSummary']}"></div></div>
+          <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Note</div><div class="stat-value" style="font-size:11px;color:var(--dim);" th:text="${eg['note']}"></div></div>
+          <div class="stat-cell" style="grid-column:1/-1"><div class="stat-label">Grade Scale</div><div class="stat-value" style="font-size:10px;color:var(--muted);" th:text="${eg['gradeScale']}"></div></div>
+        </div></div>
+      </div>
     </th:block>
   </th:block>
 </div>
@@ -1266,108 +1096,66 @@
      EMA CALCULATOR
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-ema-calc" th:classappend="${activeTab=='ema-calc'} ? 'active'">
-  <div><div class="pg-title">EMA <span>Calculator</span></div>
-    <div class="pg-sub">POST /api/{market}/ema/calculation</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">≋</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/ema/calculation}" onsubmit="busy(this)">
-        <div class="fg fg4">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Timeframe</label>
-            <select name="timeframe">
-              <option value="15M"    th:selected="${timeframe=='15M'}">15M</option>
-              <option value="30M"    th:selected="${timeframe=='30M'}">30M</option>
-              <option value="1H"     th:selected="${timeframe=='1H'}">1H</option>
-              <option value="4H"     th:selected="${timeframe=='4H'}">4H</option>
-              <option value="DAILY"  th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option>
-              <option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
-            </select></div>
-          <div class="fld"><label>Market Price</label>
-            <input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.42" required/></div>
-          <div class="fld"><label>EMA9</label>
-            <input type="number" name="ema9" step="0.0001" th:value="${ema9}" placeholder="1.39" required/></div>
-          <div class="fld"><label>EMA21</label>
-            <input type="number" name="ema21" step="0.0001" th:value="${ema21}" placeholder="1.35" required/></div>
-          <div class="fld"><label>EMA50</label>
-            <input type="number" name="ema50" step="0.0001" th:value="${ema50}" placeholder="1.28" required/></div>
-          <div class="fld"><label>EMA200</label>
-            <input type="number" name="ema200" step="0.0001" th:value="${ema200}" placeholder="1.10" required/></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Calculate</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">EMA <span>Calculator</span></div><div class="pg-sub">POST /api/{market}/ema/calculation</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">≋</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/ema/calculation}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Timeframe</label><select name="timeframe">
+          <option value="15M" th:selected="${timeframe=='15M'}">15M</option><option value="30M" th:selected="${timeframe=='30M'}">30M</option>
+          <option value="1H" th:selected="${timeframe=='1H'}">1H</option><option value="4H" th:selected="${timeframe=='4H'}">4H</option>
+          <option value="DAILY" th:selected="${timeframe=='DAILY' or timeframe==null}">Daily</option><option value="WEEKLY" th:selected="${timeframe=='WEEKLY'}">Weekly</option>
+        </select></div>
+        <div class="fld"><label>Market Price</label><input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.42" required/></div>
+        <div class="fld"><label>EMA9</label><input type="number" name="ema9" step="0.0001" th:value="${ema9}" placeholder="1.39" required/></div>
+        <div class="fld"><label>EMA21</label><input type="number" name="ema21" step="0.0001" th:value="${ema21}" placeholder="1.35" required/></div>
+        <div class="fld"><label>EMA50</label><input type="number" name="ema50" step="0.0001" th:value="${ema50}" placeholder="1.28" required/></div>
+        <div class="fld"><label>EMA200</label><input type="number" name="ema200" step="0.0001" th:value="${ema200}" placeholder="1.10" required/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Calculate</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'ema-calc'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
-      <div th:with="dec=${result['decision']}"
-           th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}"
-           class="decision-strip">
+      <div th:with="dec=${result['decision']}" th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}" class="decision-strip">
         <div th:classappend="${dec=='PROCEED' ? 'proceed' : 'skip'}" class="d-badge" th:text="${dec}"></div>
-        <div th:if="${result['stackGrade'] != null}">
-          <span class="stack-badge" th:text="${result['stackEmoji']+' '+result['stackGrade']}"></span>
-        </div>
+        <div th:if="${result['stackGrade'] != null}"><span class="stack-badge" th:text="${result['stackEmoji']+' '+result['stackGrade']}"></span></div>
         <div th:if="${result['riskLevel'] != null}">
           <span th:classappend="${#strings.contains(result['riskLevel'],'LOW') ? 'risk-low' : (#strings.contains(result['riskLevel'],'MEDIUM') ? 'risk-medium' : 'risk-high')}"
                 class="risk-pill" th:text="${result['riskLevel']}"></span>
         </div>
         <div class="d-meta" th:if="${result['input'] != null}" th:with="inp=${result['input']}">
           <div>Price <span th:text="${inp['marketPrice']}"></span></div>
-          <div>Timeframe <span th:text="${inp['timeframe']}"></span> — Hold <span th:text="${inp['holdDuration']}"></span></div>
+          <div>TF <span th:text="${inp['timeframe']}"></span> — Hold <span th:text="${inp['holdDuration']}"></span></div>
         </div>
       </div>
-      <div class="advice-box" th:if="${result['stackNote'] != null}" th:text="${result['stackNote']}"></div>
-      <div class="advice-box red" th:if="${result['reason'] != null}" th:text="${result['reason']}"></div>
+      <div class="advice-box"     th:if="${result['stackNote'] != null}" th:text="${result['stackNote']}"></div>
+      <div class="advice-box red" th:if="${result['reason'] != null}"    th:text="${result['reason']}"></div>
       <div th:if="${result['advice'] != null}"
            th:classappend="${#strings.contains(result['riskLevel'],'LOW') ? 'green' : (#strings.contains(result['riskLevel'],'MEDIUM') ? 'yellow' : 'red')}"
            class="advice-box" th:text="${result['advice']}"></div>
       <div class="card" th:if="${result['checks'] != null}" th:with="ch=${result['checks']}">
         <div class="card-hdr"><span class="ci">✓</span>EMA Stack Checks</div>
-        <div class="card-body">
-          <div class="check-list">
-            <div class="check-row" th:each="entry : ${ch.entrySet()}">
-              <span th:classappend="${#strings.contains(entry.value,'PASS') ? 'check-pass' : 'check-fail'}"
-                    th:text="${#strings.contains(entry.value,'PASS') ? '✔' : '✘'}"></span>
-              <span class="check-label" th:text="${entry.key}"></span>
-              <span style="margin-left:auto;font-size:11px;"
-                    th:classappend="${#strings.contains(entry.value,'PASS') ? 'check-pass' : 'check-fail'}"
-                    th:text="${entry.value}"></span>
-            </div>
+        <div class="card-body"><div class="check-list">
+          <div class="check-row" th:each="entry : ${ch.entrySet()}">
+            <span th:classappend="${#strings.contains(entry.value,'PASS') ? 'check-pass' : 'check-fail'}" th:text="${#strings.contains(entry.value,'PASS') ? '✔' : '✘'}"></span>
+            <span class="check-label" th:text="${entry.key}"></span>
+            <span style="margin-left:auto;font-size:11px;" th:classappend="${#strings.contains(entry.value,'PASS') ? 'check-pass' : 'check-fail'}" th:text="${entry.value}"></span>
           </div>
-        </div>
-      </div>
-      <div class="card" th:if="${result['calculation'] != null}" th:with="c=${result['calculation']}">
-        <div class="card-hdr"><span class="ci">∑</span>EMA Distances</div>
-        <div class="card-body" th:if="${c['emaDistances'] != null}" th:with="d=${c['emaDistances']}">
-          <div class="stat-grid">
-            <div class="stat-cell"><div class="stat-label">Above EMA9</div><div class="stat-value accent" th:text="${d['aboveEMA9']}"></div></div>
-            <div class="stat-cell"><div class="stat-label">Above EMA21</div><div class="stat-value accent" th:text="${d['aboveEMA21']}"></div></div>
-            <div class="stat-cell"><div class="stat-label">Above EMA50</div><div class="stat-value" th:text="${d['aboveEMA50']}"></div></div>
-            <div class="stat-cell"><div class="stat-label">Above EMA200</div><div class="stat-value" th:text="${d['aboveEMA200']}"></div></div>
-          </div>
-          <div style="font-size:10px;color:var(--dim);margin-top:.7rem;" th:text="${c['riskThresholds']}"></div>
-        </div>
+        </div></div>
       </div>
       <div class="card" th:if="${result['tradePlan'] != null}" th:with="tp=${result['tradePlan']}">
         <div class="card-hdr"><span class="ci">$</span>Trade Plan</div>
-        <div class="card-body">
-          <div class="price-block">
-            <div class="prow entry"><span class="prow-label">Entry Momentum (EMA9)</span><span class="prow-val accent" th:text="${tp['entryMomentum']}"></span><span class="prow-note">Best R:R — queue at EMA9</span></div>
-            <div class="prow entry"><span class="prow-label">Entry Swing (EMA21)</span><span class="prow-val" th:text="${tp['entrySwing']}"></span><span class="prow-note">Conservative — deeper pullback entry</span></div>
-            <div class="prow entry"><span class="prow-label">Max Entry</span><span class="prow-val" style="color:var(--dim)" th:text="${tp['entryMax']}"></span><span class="prow-note">Do not chase above this price</span></div>
-            <div class="prow sl"><span class="prow-label">Stop Loss</span><span class="prow-val red" th:text="${tp['stopLoss']}"></span><span class="prow-note">Below EMA21 — break = exit immediately</span></div>
-            <div class="prow tp1"><span class="prow-label">TP1 — 40%</span><span class="prow-val green" th:text="${tp['tp1']}"></span><span class="prow-note">R:R 1:1.0 — move SL to breakeven</span></div>
-            <div class="prow tp2"><span class="prow-label">TP2 — 40%</span><span class="prow-val g2" th:text="${tp['tp2']}"></span><span class="prow-note">R:R 1:2.0</span></div>
-            <div class="prow tp3"><span class="prow-label">TP3 — 20%</span><span class="prow-val g3" th:text="${tp['tp3']}"></span><span class="prow-note">R:R 1:3.5 — trail or hold</span></div>
-          </div>
-        </div>
+        <div class="card-body"><div class="price-block">
+          <div class="prow entry"><span class="prow-label">Entry Momentum (EMA9)</span><span class="prow-val accent" th:text="${tp['entryMomentum']}"></span><span class="prow-note">Best R:R — queue at EMA9</span></div>
+          <div class="prow entry"><span class="prow-label">Entry Swing (EMA21)</span><span class="prow-val" th:text="${tp['entrySwing']}"></span><span class="prow-note">Conservative pullback entry</span></div>
+          <div class="prow entry"><span class="prow-label">Max Entry</span><span class="prow-val" style="color:var(--dim)" th:text="${tp['entryMax']}"></span><span class="prow-note">Do not chase above this</span></div>
+          <div class="prow sl"><span class="prow-label">Stop Loss</span><span class="prow-val red" th:text="${tp['stopLoss']}"></span><span class="prow-note">Below EMA21 — break = exit</span></div>
+          <div class="prow tp1"><span class="prow-label">TP1 — 40%</span><span class="prow-val green" th:text="${tp['tp1']}"></span><span class="prow-note">R:R 1:1.0 — move SL to breakeven</span></div>
+          <div class="prow tp2"><span class="prow-label">TP2 — 40%</span><span class="prow-val g2" th:text="${tp['tp2']}"></span><span class="prow-note">R:R 1:2.0</span></div>
+          <div class="prow tp3"><span class="prow-label">TP3 — 20%</span><span class="prow-val g3" th:text="${tp['tp3']}"></span><span class="prow-note">R:R 1:3.5 — trail or hold</span></div>
+        </div></div>
       </div>
     </th:block>
   </th:block>
@@ -1377,58 +1165,35 @@
      PULLBACK
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-pullback" th:classappend="${activeTab=='pullback'} ? 'active'">
-  <div><div class="pg-title">Pullback <span>Detection</span></div>
-    <div class="pg-sub">GET /api/{market}/pullback</div></div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">↙</span>Parameters</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/pullback}" onsubmit="busy(this)">
-        <div class="fg fg4">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld"><label>Stock Code</label>
-            <input type="text" name="code" placeholder="5243 or AAPL" th:value="${code}" required/></div>
-          <div class="fld"><label>Interval</label>
-            <select name="interval">
-              <option value="1d" selected>1d — Daily</option>
-              <option value="1h">1h — Hourly</option>
-              <option value="30m">30m</option>
-              <option value="15m">15m</option>
-            </select></div>
-          <div class="fld"><label>Candle Limit</label>
-            <input type="number" name="limit" value="20" min="5" max="200"/></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Detect</button></div>
-      </form>
-    </div>
-  </div>
+  <div><div class="pg-title">Pullback <span>Detection</span></div><div class="pg-sub">GET /api/{market}/pullback</div></div>
+  <div class="card"><div class="card-hdr"><span class="ci">↙</span>Parameters</div><div class="card-body">
+    <form method="post" th:action="@{/ui/pullback}" onsubmit="busy(this)">
+      <div class="fg fg4">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld"><label>Stock Code</label><input type="text" name="code" placeholder="5243 or AAPL" th:value="${code}" required/></div>
+        <div class="fld"><label>Interval</label><select name="interval"><option value="1d" selected>1d — Daily</option><option value="1h">1h — Hourly</option><option value="30m">30m</option><option value="15m">15m</option></select></div>
+        <div class="fld"><label>Candle Limit</label><input type="number" name="limit" value="20" min="5" max="200"/></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Detect</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'pullback'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div class="sum-row">
         <div class="sum-cell"><div class="sv accent" style="font-size:14px;" th:text="${result['code']}"></div><div class="sl">Code</div></div>
         <div class="sum-cell"><div class="sv" th:text="${result['currentPrice']}"></div><div class="sl">Current Price</div></div>
         <div class="sum-cell"><div class="sv" style="color:var(--yellow)" th:text="${result['ma5']}"></div><div class="sl">MA5</div></div>
-        <div class="sum-cell"><div class="sv" style="color:var(--dim)"   th:text="${result['ma20']}"></div><div class="sl">MA20</div></div>
-        <div class="sum-cell"><div class="sv" style="color:var(--dim)"   th:text="${result['candles']}"></div><div class="sl">Candles</div></div>
-        <div class="sum-cell"><div class="sv" style="color:var(--dim)"   th:text="${result['interval']}"></div><div class="sl">Interval</div></div>
+        <div class="sum-cell"><div class="sv" style="color:var(--dim)" th:text="${result['ma20']}"></div><div class="sl">MA20</div></div>
+        <div class="sum-cell"><div class="sv" style="color:var(--dim)" th:text="${result['candles']}"></div><div class="sl">Candles</div></div>
+        <div class="sum-cell"><div class="sv" style="color:var(--dim)" th:text="${result['interval']}"></div><div class="sl">Interval</div></div>
       </div>
       <div class="advice-box yellow" th:if="${result['dataWarning'] != null}" th:text="${result['dataWarning']}"></div>
       <div class="card" th:if="${result['pullback'] != null}" th:with="pb=${result['pullback']}">
         <div class="card-hdr"><span class="ci">↙</span>Pullback Analysis</div>
-        <div class="card-body">
-          <div class="stat-grid">
-            <div class="stat-cell" th:each="entry : ${pb.entrySet()}">
-              <div class="stat-label" th:text="${entry.key}"></div>
-              <div class="stat-value" th:text="${entry.value}"></div>
-            </div>
-          </div>
-        </div>
+        <div class="card-body"><div class="stat-grid">
+          <div class="stat-cell" th:each="entry : ${pb.entrySet()}"><div class="stat-label" th:text="${entry.key}"></div><div class="stat-value" th:text="${entry.value}"></div></div>
+        </div></div>
       </div>
     </th:block>
   </th:block>
@@ -1438,40 +1203,28 @@
      LEVEL 2 OCR
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-level2" th:classappend="${activeTab=='level2'} ? 'active'">
-  <div><div class="pg-title">Level 2 <span>OCR</span></div>
-    <div class="pg-sub">POST /api/{market}/level2/analyze-image</div></div>
+  <div><div class="pg-title">Level 2 <span>OCR</span></div><div class="pg-sub">POST /api/{market}/level2/analyze-image</div></div>
   <div class="info-strip">
     <div class="ii"><span class="ii-label">Accepted</span><span class="ii-val">PNG, JPG, BMP</span></div>
     <div class="ii"><span class="ii-label">Max Size</span><span class="ii-val">10 MB</span></div>
     <div class="ii"><span class="ii-label">Tip</span><span class="ii-val">Clear, unrotated screenshot</span></div>
   </div>
-  <div class="card">
-    <div class="card-hdr"><span class="ci">◉</span>Upload</div>
-    <div class="card-body">
-      <form method="post" th:action="@{/ui/level2/image}" enctype="multipart/form-data" onsubmit="busy(this)">
-        <div class="fg fg2">
-          <div class="fld"><label>Market</label>
-            <select name="market">
-              <option value="my" th:selected="${market=='my'}">MY</option>
-              <option value="us" th:selected="${market=='us'}">US</option>
-            </select></div>
-          <div class="fld fld-wide">
-            <label>Level 2 Screenshot</label>
-            <div class="upload-area" onclick="document.getElementById('imgFile').click()">
-              <div class="upload-icon">⊕</div>
-              <div id="fileLabel">Click to select or drag &amp; drop</div>
-            </div>
-            <input type="file" id="imgFile" name="image" accept="image/*" required style="display:none" onchange="updateLabel(this)"/>
+  <div class="card"><div class="card-hdr"><span class="ci">◉</span>Upload</div><div class="card-body">
+    <form method="post" th:action="@{/ui/level2/image}" enctype="multipart/form-data" onsubmit="busy(this)">
+      <div class="fg fg2">
+        <div class="fld"><label>Market</label><select name="market"><option value="my" th:selected="${market=='my'}">MY</option><option value="us" th:selected="${market=='us'}">US</option></select></div>
+        <div class="fld fld-wide"><label>Level 2 Screenshot</label>
+          <div class="upload-area" onclick="document.getElementById('imgFile').click()">
+            <div class="upload-icon">⊕</div><div id="fileLabel">Click to select or drag &amp; drop</div>
           </div>
+          <input type="file" id="imgFile" name="image" accept="image/*" required style="display:none" onchange="updateLabel(this)"/>
         </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Analyse Image</button></div>
-      </form>
-    </div>
-  </div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">▶ Analyse Image</button></div>
+    </form>
+  </div></div>
   <th:block th:if="${result != null and activeTab == 'level2'}">
-    <div class="err-banner" th:if="${result['error'] != null}">
-      <span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div>
-    </div>
+    <div class="err-banner" th:if="${result['error'] != null}"><span class="err-icon">⚠</span><div><strong>Error</strong><br/><span th:text="${result['error']}"></span></div></div>
     <th:block th:if="${result['error'] == null}">
       <div class="sum-row" th:if="${result['rowsExtracted'] != null}" th:with="rx=${result['rowsExtracted']}">
         <div class="sum-cell"><div class="sv green" th:text="${rx['bids']}"></div><div class="sl">Bid Rows</div></div>
@@ -1480,14 +1233,11 @@
       </div>
       <div class="card" th:if="${result['analysis'] != null}">
         <div class="card-hdr"><span class="ci">◈</span>Analysis</div>
-        <div class="card-body">
-          <div class="stat-grid">
-            <div class="stat-cell" th:each="entry : ${result['analysis'].entrySet()}">
-              <div class="stat-label" th:text="${entry.key}"></div>
-              <div class="stat-value" th:text="${entry.value}"></div>
-            </div>
+        <div class="card-body"><div class="stat-grid">
+          <div class="stat-cell" th:each="entry : ${result['analysis'].entrySet()}">
+            <div class="stat-label" th:text="${entry.key}"></div><div class="stat-value" th:text="${entry.value}"></div>
           </div>
-        </div>
+        </div></div>
       </div>
     </th:block>
   </th:block>
@@ -1497,28 +1247,53 @@
 </div>
 
 <script>
+  /* ── Theme toggle ───────────────────────────────────────────────────── */
+  const THEME_KEY = 'screener-theme';
+
+  function applyTheme(theme) {
+    const html  = document.documentElement;
+    const icon  = document.querySelector('.t-icon');
+    const label = document.getElementById('themeLabel');
+    if (theme === 'light') {
+      html.classList.add('light');
+      if (icon)  icon.textContent  = '☀️';
+      if (label) label.textContent = 'Light';
+    } else {
+      html.classList.remove('light');
+      if (icon)  icon.textContent  = '🌙';
+      if (label) label.textContent = 'Dark';
+    }
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+    const next    = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  }
+
+  // Apply saved theme immediately (before paint to avoid flash)
+  (function () {
+    const saved = localStorage.getItem(THEME_KEY) || 'dark';
+    applyTheme(saved);
+  })();
+
   /* ── Tab switching ──────────────────────────────────────────────────── */
   function showTab(id) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.bn-item').forEach(n => n.classList.remove('active'));
-
     const panel = document.getElementById('tab-' + id);
     if (panel) panel.classList.add('active');
-
     document.querySelectorAll('.nav-item').forEach(n => {
       if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active');
     });
-
     const bnItem = document.getElementById('bn-' + id);
     if (bnItem) {
       bnItem.classList.add('active');
       bnItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
-
-    if (window.innerWidth <= 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (window.innerWidth <= 768) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   /* ── Mobile drawer ──────────────────────────────────────────────────── */
@@ -1526,26 +1301,18 @@
     const btn     = document.getElementById('menuBtn');
     const drawer  = document.getElementById('sidebarDrawer');
     const overlay = document.getElementById('drawerOverlay');
-    if (drawer.classList.contains('open')) {
-      closeDrawer();
-    } else {
-      btn.classList.add('open');
-      drawer.classList.add('open');
-      overlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    }
+    if (drawer.classList.contains('open')) { closeDrawer(); return; }
+    btn.classList.add('open'); drawer.classList.add('open'); overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
   }
-
   function closeDrawer() {
     document.getElementById('menuBtn').classList.remove('open');
     document.getElementById('sidebarDrawer').classList.remove('open');
     document.getElementById('drawerOverlay').classList.remove('open');
     document.body.style.overflow = '';
   }
-
   function showTabMobile(id) {
-    closeDrawer();
-    showTab(id);
+    closeDrawer(); showTab(id);
     document.querySelectorAll('#sidebarDrawer .nav-item').forEach(n => {
       n.classList.toggle('active', n.getAttribute('onclick')?.includes("'" + id + "'"));
     });
@@ -1563,22 +1330,19 @@
     if (input.files?.[0]) lbl.textContent = '✓ ' + input.files[0].name;
   }
 
-  /* ── Sync active state on page load ────────────────────────────────── */
+  /* ── Sync active nav on page load ───────────────────────────────────── */
   (function() {
     const active = document.querySelector('.tab-panel.active');
     if (!active) return;
     const id = active.id.replace('tab-', '');
-
     document.querySelectorAll('.nav-item').forEach(n => {
       if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active');
     });
-
     const bnItem = document.getElementById('bn-' + id);
     if (bnItem) {
       bnItem.classList.add('active');
       setTimeout(() => bnItem.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' }), 50);
     }
-
     document.querySelectorAll('#sidebarDrawer .nav-item').forEach(n => {
       if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active');
     });

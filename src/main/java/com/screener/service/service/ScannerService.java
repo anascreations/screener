@@ -186,5 +186,4 @@ public class ScannerService {
 			d = d.plusDays(1);
 		return d;
 	}
-
 }

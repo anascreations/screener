@@ -22,5 +22,8 @@ public class TrendDistanceRequest {
 	private Double ma50;
 	@NotBlank
 	private String timeframe;
-	private String ticker; // optional, for display
+	private String ticker;
+	private Double rsi14;
+	private Double atr14;
+	private Double volumeRatio;
 }

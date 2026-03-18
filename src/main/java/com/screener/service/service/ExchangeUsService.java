@@ -446,5 +446,4 @@ public class ExchangeUsService implements ExchangeService, SessionProvider {
 			ThreadUtil.sleep(warmup);
 		}
 	}
-
 }

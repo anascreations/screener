@@ -13,6 +13,7 @@ import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
 
+import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.TrendDistanceRequest;
 
 @HttpExchange("api")
@@ -38,9 +39,8 @@ public interface ScreenerClient {
 	@GetExchange("{market}/result/{code}")
 	Object resultStock(@PathVariable String market, @PathVariable String code);
 
-	@GetExchange("{market}/ma/calculation/{mp}/{ma5}/{ma20}")
-	Map<String, Object> maCalculation(@PathVariable String market, @PathVariable double mp, @PathVariable double ma5,
-			@PathVariable double ma20, @RequestParam String timeframe);
+	@PostExchange("{market}/ma/calculation")
+	Map<String, Object> maCalculation(@PathVariable String market, @RequestBody MaCalculationRequest request);
 
 	@GetExchange("{market}/ema/calculation/{mp}/{e9}/{e21}/{e50}/{e200}")
 	Map<String, Object> emaCalculation(@PathVariable String market, @PathVariable double mp, @PathVariable double e9,

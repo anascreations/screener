@@ -122,9 +122,8 @@ public class ScreenerController {
 		log.info("=== MANUAL SCAN [{}/{}] ===", m, code.toUpperCase());
 		Optional<ScanResult> result = analysisService.scan(m, code);
 		if (result.isEmpty()) {
-			return ResponseEntity.status(503)
-					.body(Map.of("market", m.name(), "code", code.toUpperCase(), "status", "FAILED", "reason",
-							"No data from Yahoo Finance or insufficient history. Retry after market close."));
+			return ResponseEntity.ok(Map.of("market", m.name(), "code", code.toUpperCase(), "error",
+					"No data from Yahoo Finance or insufficient history. Retry after market close."));
 		}
 		return ResponseEntity.ok(buildSingleResponse(m, result.get()));
 	}
@@ -536,7 +535,7 @@ public class ScreenerController {
 		return ResponseEntity.ok(resp);
 	}
 
-	@GetMapping("ma/calculation")
+	@PostMapping("ma/calculation")
 	public ResponseEntity<Map<String, Object>> maCalculation(@RequestBody @Valid MaCalculationRequest request) {
 		return ResponseEntity.ok(calcService.maCalculate(request));
 	}
@@ -895,5 +894,4 @@ public class ScreenerController {
 		resp.put("tradePlan", tradePlan);
 		return ResponseEntity.ok(resp);
 	}
-
 }

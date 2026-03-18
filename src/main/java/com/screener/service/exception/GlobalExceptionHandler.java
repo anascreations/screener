@@ -5,8 +5,10 @@ import java.time.Instant;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
@@ -41,6 +43,12 @@ public class GlobalExceptionHandler {
 		log.error("Unexpected error", ex);
 		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "/errors/internal", "INTERNAL_ERROR",
 				"An unexpected error occurred.");
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<Void> handleNoStaticResource(NoResourceFoundException ex) {
+		log.debug("[Static] Resource not found: {}", ex.getResourcePath());
+		return ResponseEntity.notFound().build();
 	}
 
 	private ProblemDetail problem(HttpStatus status, String type, String title, String detail) {
