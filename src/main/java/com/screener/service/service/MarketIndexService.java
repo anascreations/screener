@@ -21,6 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.screener.service.client.YahooCrumbClient;
 import com.screener.service.client.YahooHomeClient;
 import com.screener.service.constants.Constants;
+import com.screener.service.dto.IndexCache;
+import com.screener.service.dto.YahooSession;
 import com.screener.service.enums.Market;
 import com.screener.service.exception.ExternalApiException;
 import com.screener.service.exception.RateLimitException;
@@ -38,12 +40,6 @@ public class MarketIndexService {
 
 	public enum IndexTrend {
 		UPTREND, NEUTRAL, DOWNTREND
-	}
-
-	private record IndexCache(IndexTrend trend, double indexClose, double ema20, double ema50, long fetchedAt) {
-	}
-
-	private record YahooSession(String cookie, String crumb, long fetchedAt) {
 	}
 
 	private final Map<Market, IndexCache> indexCache = new ConcurrentHashMap<>();

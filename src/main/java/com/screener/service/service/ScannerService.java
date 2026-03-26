@@ -128,13 +128,11 @@ public class ScannerService {
 	}
 
 	private void logHeader(Market market, double min, double max, double minScore, String exch, LocalDateTime t) {
-		log.info("████████████████████████████████████████████████████████");
 		log.info("  {} SCAN | {} — {} | {} | minScore:{}", market, market.formatPrice(min), market.formatPrice(max),
 				exch, (int) minScore);
 		log.info("  Throttle : {} concurrent slots, {}ms gap per slot", scanParallelism, delayBetweenMs);
 		log.info("  Require  : MACD Golden Cross (histogram crosses zero today or confirmed yesterday+accelerating)");
 		log.info("  Started  : {}", t);
-		log.info("████████████████████████████████████████████████████████");
 	}
 
 	private void logSummary(Market market, List<ScanResult> results, double min, double max, double minScore,
@@ -144,7 +142,6 @@ public class ScannerService {
 				.toList();
 		List<ScanResult> watches = results.stream().filter(r -> "WATCH".equals(r.getDecision())).toList();
 		LocalDate tradeDate = nextTradingDayFrom(market, LocalDate.now(market.zoneId));
-		log.info("████████████████████████████████████████████████████████");
 		log.info("  {} DONE in {}s | Analyzed:{} NO_DATA:{} FAIL:{}", market, elapsed, results.size(), noData, fail);
 		int totalAttempted = results.size() + noData + fail;
 		if (noData > totalAttempted * 0.25) {
@@ -154,7 +151,6 @@ public class ScannerService {
 			log.warn("       · Running during market hours — wait for confirmed EOD data");
 			log.warn("       Current settings: parallelism={} delay={}ms", scanParallelism, delayBetweenMs);
 		}
-		log.info("████████████████████████████████████████████████████████");
 		if (buys.isEmpty()) {
 			log.info("  No BUY signals — MACD golden cross is a rare event, this is normal.");
 			log.info("  WATCH list below = stocks that passed score/volume but need a fresh cross.");

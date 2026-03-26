@@ -11,10 +11,14 @@ import org.springframework.stereotype.Service;
 import com.screener.service.dto.Level2Request;
 import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.TrendDistanceRequest;
+import com.screener.service.enums.EntryDecision;
+import com.screener.service.enums.MarketRegime;
+import com.screener.service.enums.PriceZone;
+import com.screener.service.enums.RiskLevel;
+import com.screener.service.enums.RsiZone;
+import com.screener.service.enums.TrendGrade;
+import com.screener.service.enums.VolumeZone;
 import com.screener.service.model.Level2Entry;
-
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 @Service
 public class CalculationService {
@@ -159,15 +163,6 @@ public class CalculationService {
 		return resp;
 	}
 
-	// =========================================================================
-	// MA CALCULATION — 5-filter combined strategy
-	//
-	// STEP 1: MA5 > MA20 > MA50 (hard gate)
-	// STEP 2: Formula1 — 0% < ((Price-MA20)/MA20×100) < 5%
-	// STEP 3: Formula2 — ((MA20-MA50)/MA50×100) → grade S++/A/B/C
-	// STEP 4: RSI14 — 50–65 ideal, >80 skip, <40 skip
-	// STEP 5: VolumeRatio — >1.2× pass, <0.8× skip
-	// =========================================================================
 	public Map<String, Object> maCalculate(MaCalculationRequest req) {
 		double price = req.getMarketPrice();
 		double ma5 = req.getMa5();
@@ -179,60 +174,48 @@ public class CalculationService {
 		List<String> confluences = new ArrayList<>();
 		Map<String, Object> resp = new LinkedHashMap<>();
 		resp.put("input", buildInput(req, tf));
-		// ── STEP 1 GATE A: Price must be above MA20 ───────────────────────────
-		if (price < ma20) {
+		if (price < ma20)
 			return buildSkip(resp,
 					String.format("STEP 1 FAIL — Price (%.4f) below MA20 (%.4f). Support broken.", price, ma20),
 					Map.of("priceVsMA20", String.format("%.4f below MA20 (%.4f)", ma20 - price, ma20), "note",
 							"Price below MA20 = downtrend. Wait for reclaim."));
-		}
-		// ── STEP 1 GATE B: MA5 must be above MA20 (golden cross) ─────────────
-		if (ma5 < ma20) {
+		if (ma5 < ma20)
 			return buildSkip(resp,
 					String.format("STEP 1 FAIL — MA5 (%.4f) below MA20 (%.4f). No golden cross yet.", ma5, ma20),
 					Map.of("ma5AboveMA20", false, "gap",
 							String.format("MA5 is %.4f (%.2f%%) below MA20", ma20 - ma5, (ma20 - ma5) / ma20 * 100),
 							"note", "Wait for MA5 ≥ MA20 golden cross."));
-		}
-		// ── STEP 1 GATE C: MA20 must be above MA50 ───────────────────────────
-		if (ma20 < ma50) {
+		if (ma20 < ma50)
 			return buildSkip(resp,
 					String.format("STEP 1 FAIL — MA20 (%.4f) below MA50 (%.4f). Medium trend bearish.", ma20, ma50),
 					Map.of("ma20AboveMA50", false, "gap",
 							String.format("MA20 is %.4f (%.2f%%) below MA50", ma50 - ma20, (ma50 - ma20) / ma50 * 100),
 							"note", "MA5 > MA20 > MA50 stack must be fully aligned."));
-		}
 		confluences.add("✅ STEP 1 PASS — MA5 > MA20 > MA50 fully aligned");
-		// ── STEP 2: Price vs MA20 ─────────────────────────────────────────────
 		double pctAboveMA20 = (price - ma20) / ma20 * 100;
 		double pctAboveMA5 = (price - ma5) / ma5 * 100;
 		double ma5AboveMA20 = (ma5 - ma20) / ma20 * 100;
 		double pctAboveMA50 = (price - ma50) / ma50 * 100;
-		PriceZone priceZone = resolvePriceZone(pctAboveMA20);
-		resolveStep2(priceZone, pctAboveMA20, ma20, confluences, warnings);
-		// ── STEP 3: MA20 vs MA50 trend maturity ──────────────────────────────
 		double ma20VsMa50Pct = (ma20 - ma50) / ma50 * 100;
+		PriceZone priceZone = resolvePriceZone(pctAboveMA20);
 		TrendGrade trendGrade = resolveTrendGrade(ma20VsMa50Pct);
+		resolveStep2(priceZone, pctAboveMA20, ma20, confluences, warnings);
 		resolveStep3(trendGrade, ma20VsMa50Pct, confluences, warnings);
-		// ── STEP 4: RSI14 ─────────────────────────────────────────────────────
 		RsiZone rsiZone = RsiZone.UNKNOWN;
-		if (req.getRsi14() != null) {
+		if (req.getRsi14() != null)
 			rsiZone = resolveRsiZone(req.getRsi14(), confluences, warnings);
-		} else {
+		else
 			warnings.add("⚠️ STEP 4 — RSI14 not provided, momentum unconfirmed");
-		}
-		// ── STEP 5: Volume Ratio ──────────────────────────────────────────────
 		VolumeZone volumeZone = VolumeZone.UNKNOWN;
-		if (req.getVolumeRatio() != null) {
+		if (req.getVolumeRatio() != null)
 			volumeZone = resolveVolumeZone(req.getVolumeRatio(), confluences, warnings);
-		} else {
+		else
 			warnings.add("⚠️ STEP 5 — Volume ratio not provided, conviction unconfirmed");
-		}
-		// ── Market Regime (MA200) ─────────────────────────────────────────────
 		MarketRegime regime = resolveRegime(price, ma200, warnings, confluences);
-		// ── Combined signal score ─────────────────────────────────────────────
 		SignalScore signalScore = resolveSignalScore(priceZone, trendGrade, rsiZone, volumeZone, regime);
 		RiskLevel riskLevel = resolveRiskLevel(priceZone, trendGrade, rsiZone, volumeZone, regime);
+		HoldCalculation hold = resolveHoldDays(pctAboveMA20, ma20VsMa50Pct, req.getRsi14(), req.getVolumeRatio(),
+				req.getAtr14(), req.getMarketPrice(), tf);
 		resp.put("decision", riskLevel.decision);
 		resp.put("emoji", riskLevel.emoji);
 		resp.put("risk", riskLevel.label);
@@ -242,8 +225,9 @@ public class CalculationService {
 		resp.put("trendGrade", trendGrade.grade);
 		resp.put("rsiZone", rsiZone.label);
 		resp.put("volumeZone", volumeZone.label);
+		resp.put("holdDays", buildHoldDaysMap(hold));
 		resp.put("advice", buildAdvice(riskLevel, priceZone, trendGrade, rsiZone, volumeZone, tf, pctAboveMA20, ma5,
-				ma20, ma50, ma200));
+				ma20, ma50, ma200, hold));
 		resp.put("warnings", warnings);
 		resp.put("confluences", confluences);
 		resp.put("filterSteps",
@@ -251,10 +235,8 @@ public class CalculationService {
 		resp.put("calculation",
 				buildCalculation(price, ma20, ma50, ma200, pctAboveMA20, pctAboveMA5, ma5AboveMA20, pctAboveMA50));
 		resp.put("maAlignment", buildMaAlignment(price, ma5, ma20, ma50, ma200));
-		if ("SKIP".equals(riskLevel.decision)) {
+		if ("SKIP".equals(riskLevel.decision))
 			return resp;
-		}
-		// ── Entry / SL / TP ───────────────────────────────────────────────────
 		double entryIdeal = pctAboveMA5 <= 0.5 ? round4(price) : round4(ma5);
 		double entryMax = round4(price);
 		double stopLoss = resolveStopLoss(price, ma20, ma50, tf, req.getAtr14(), warnings);
@@ -264,13 +246,10 @@ public class CalculationService {
 		double tp3 = round4(entryIdeal + risk_R * 3.5);
 		resp.put("positionSize", resolvePositionSize(priceZone, trendGrade, rsiZone, volumeZone));
 		resp.put("tradePlan", buildTradePlan(price, ma20, ma50, tf, entryIdeal, entryMax, stopLoss, risk_R, tp1, tp2,
-				tp3, req.getAtr14()));
+				tp3, req.getAtr14(), hold));
 		return resp;
 	}
 
-	// =========================================================================
-	// TREND DISTANCE
-	// =========================================================================
 	public Map<String, Object> trendDistance(TrendDistanceRequest req) {
 		double price = req.getMarketPrice();
 		double ma20 = req.getMa20();
@@ -294,6 +273,8 @@ public class CalculationService {
 			warnings.add("⚠️ Volume ratio not provided — conviction unconfirmed");
 		EntryDecision decision = resolveDecision(priceZone, trendGrade, rsiZone, volumeZone);
 		SignalScore signalScore = resolveSignalScore(priceZone, trendGrade, rsiZone, volumeZone, MarketRegime.BULL);
+		HoldCalculation hold = resolveHoldDays(priceVsMa20Pct, ma20VsMa50Pct, req.getRsi14(), req.getVolumeRatio(),
+				null, req.getMarketPrice(), tf);
 		Map<String, Object> resp = new LinkedHashMap<>();
 		if (req.getTicker() != null)
 			resp.put("ticker", req.getTicker().toUpperCase());
@@ -303,19 +284,155 @@ public class CalculationService {
 		resp.put("grade", trendGrade.grade);
 		resp.put("signalScore", signalScore.score() + " / " + signalScore.maxScore());
 		resp.put("signalQuality", signalScore.grade());
-		resp.put("summary", buildSummary(priceVsMa20Pct, ma20VsMa50Pct, priceZone, trendGrade, tf));
+		resp.put("holdDays", buildHoldDaysMap(hold));
+		resp.put("summary", buildSummary(priceVsMa20Pct, ma20VsMa50Pct, priceZone, trendGrade, tf, hold));
 		resp.put("formula1", buildFormula1(price, ma20, priceVsMa20Pct, priceZone));
 		resp.put("formula2", buildFormula2(ma20, ma50, ma20VsMa50Pct, trendGrade));
 		resp.put("entryGuidance",
-				buildEntryGuidance(decision, trendGrade, priceZone, rsiZone, volumeZone, ma20, ma50, tf));
+				buildEntryGuidance(decision, trendGrade, priceZone, rsiZone, volumeZone, ma20, ma50, tf, hold));
 		resp.put("warnings", warnings);
 		resp.put("confluences", confluences);
 		return resp;
 	}
 
-	// =========================================================================
-	// STEP RESOLVERS
-	// =========================================================================
+	public HoldCalculation resolveHoldDays(double priceVsMa20Pct, double ma20VsMa50Pct, Double rsi14,
+			Double volumeRatio, Double atr14, Double marketPrice, TimeframeConfig tf) {
+		int score = 0;
+		List<String> reasons = new ArrayList<>();
+		if (priceVsMa20Pct >= 0 && priceVsMa20Pct <= 1.0) {
+			score += 3;
+			reasons.add("F1 ideal (0–1%) → maximum upside room");
+		} else if (priceVsMa20Pct <= 2.0) {
+			score += 2;
+			reasons.add("F1 ideal (1–2%) → strong upside room");
+		} else if (priceVsMa20Pct <= 5.0) {
+			score += 1;
+			reasons.add("F1 acceptable (2–5%) → moderate room");
+		} else {
+			score += 0;
+			reasons.add("F1 stretched (>5%) → limited upside, slow move expected");
+		}
+		if (ma20VsMa50Pct >= 1.0 && ma20VsMa50Pct <= 2.0) {
+			score += 3;
+			reasons.add("F2 S++ early (1–2%) → peak momentum, fastest move");
+		} else if (ma20VsMa50Pct <= 3.0) {
+			score += 3;
+			reasons.add("F2 S++ (2–3%) → high momentum");
+		} else if (ma20VsMa50Pct <= 5.0) {
+			score += 2;
+			reasons.add("F2 Grade A (3–5%) → good momentum");
+		} else if (ma20VsMa50Pct <= 8.0) {
+			score += 1;
+			reasons.add("F2 Grade B (5–8%) → momentum fading");
+		} else {
+			score += 0;
+			reasons.add("F2 Grade C/Exhausted (>8%) → very late, slow grind expected");
+		}
+		if (rsi14 != null) {
+			if (rsi14 >= 50 && rsi14 <= 60) {
+				score += 2;
+				reasons.add(String.format("RSI %.1f ideal (50–60) → room to accelerate", rsi14));
+			} else if (rsi14 > 60 && rsi14 <= 65) {
+				score += 2;
+				reasons.add(String.format("RSI %.1f strong (60–65) → momentum confirmed", rsi14));
+			} else if (rsi14 > 65 && rsi14 <= 70) {
+				score += 1;
+				reasons.add(String.format("RSI %.1f high (65–70) → nearing overbought, may slow", rsi14));
+			} else if (rsi14 >= 45 && rsi14 < 50) {
+				score += 1;
+				reasons.add(String.format("RSI %.1f recovering (45–50) → needs 1 extra day", rsi14));
+			} else if (rsi14 > 70) {
+				score += 0;
+				reasons.add(String.format("RSI %.1f overbought (>70) → likely to consolidate first", rsi14));
+			} else {
+				score += 0;
+				reasons.add(String.format("RSI %.1f weak (<45) → slow momentum", rsi14));
+			}
+		} else {
+			score += 1;
+			reasons.add("RSI not provided — neutral assumption (+1)");
+		}
+		if (volumeRatio != null) {
+			if (volumeRatio >= 2.0) {
+				score += 2;
+				reasons.add(String.format("Volume %.2f× surge → institutional driven, fast move", volumeRatio));
+			} else if (volumeRatio >= 1.5) {
+				score += 2;
+				reasons.add(String.format("Volume %.2f× strong → clear accumulation", volumeRatio));
+			} else if (volumeRatio >= 1.2) {
+				score += 1;
+				reasons.add(String.format("Volume %.2f× above avg → buyers present", volumeRatio));
+			} else if (volumeRatio >= 0.8) {
+				score += 0;
+				reasons.add(String.format("Volume %.2f× average → no urgency, may drift", volumeRatio));
+			} else {
+				score += 0;
+				reasons.add(String.format("Volume %.2f× weak → low conviction, slow", volumeRatio));
+			}
+		} else {
+			score += 1;
+			reasons.add("Volume not provided — neutral assumption (+1)");
+		}
+		HoldRange range = scoreToHoldRange(score);
+		if (atr14 != null && marketPrice != null && marketPrice > 0) {
+			double atrPct = (atr14 / marketPrice) * 100;
+			if (atrPct >= 3.0) {
+				range = range.shiftFaster(1);
+				reasons.add(String.format("ATR %.2f%% of price → high volatility, TP hit faster", atrPct));
+			} else if (atrPct >= 1.5) {
+				reasons.add(String.format("ATR %.2f%% of price → normal volatility", atrPct));
+			} else {
+				range = range.shiftSlower(1);
+				reasons.add(String.format("ATR %.2f%% of price → low volatility, allow 1 extra day", atrPct));
+			}
+		}
+		range = applyTimeframeMultiplier(range, tf);
+		return new HoldCalculation(range.min(), range.max(), range.target(), String.join(" · ", reasons),
+				buildExitRule(range, ma20VsMa50Pct));
+	}
+
+	private HoldRange scoreToHoldRange(int score) {
+		if (score >= 9)
+			return new HoldRange(1, 2, 1);
+		if (score >= 7)
+			return new HoldRange(1, 3, 2);
+		if (score >= 5)
+			return new HoldRange(2, 4, 3);
+		if (score >= 3)
+			return new HoldRange(3, 6, 4);
+		return new HoldRange(5, 10, 7);
+	}
+
+	private HoldRange applyTimeframeMultiplier(HoldRange range, TimeframeConfig tf) {
+		return switch (tf.label()) {
+		case "15M" -> new HoldRange(1, 1, 1);
+		case "30M" -> new HoldRange(1, 1, 1);
+		case "1H" -> new HoldRange(1, 2, 1);
+		case "4H" -> new HoldRange(1, 3, 2);
+		case "WEEKLY" -> new HoldRange(range.min() * 5, range.max() * 7, range.target() * 5);
+		default -> range;
+		};
+	}
+
+	private String buildExitRule(HoldRange range, double ma20VsMa50Pct) {
+		String hardStop = "Exit immediately if price closes below MA20";
+		String timeStop = String.format("If TP1 not reached by day %d — exit regardless, thesis failed", range.max());
+		String gradeNote = ma20VsMa50Pct <= 3.0 ? "S++ setup: if no move by day 2, reduce 50% and re-evaluate"
+				: "Grade A/B: give full " + range.max() + " days before cutting";
+		return hardStop + " · " + timeStop + " · " + gradeNote;
+	}
+
+	private Map<String, Object> buildHoldDaysMap(HoldCalculation hold) {
+		Map<String, Object> m = new LinkedHashMap<>();
+		m.put("label", hold.label());
+		m.put("minDays", hold.minDays());
+		m.put("maxDays", hold.maxDays());
+		m.put("targetDays", hold.targetDays());
+		m.put("basis", hold.basis());
+		m.put("exitRule", hold.exitRule());
+		return m;
+	}
+
 	private void resolveStep2(PriceZone zone, double pct, double ma20, List<String> confluences,
 			List<String> warnings) {
 		switch (zone) {
@@ -396,7 +513,7 @@ public class CalculationService {
 
 	private SignalScore resolveSignalScore(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, MarketRegime regime) {
-		int score = 1; // STEP 1 MA alignment always passes here
+		int score = 1;
 		score += switch (priceZone) {
 		case IDEAL -> 2;
 		case ACCEPTABLE -> 1;
@@ -474,7 +591,6 @@ public class CalculationService {
 
 	private String resolvePositionSize(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone) {
-		// All green — full position
 		if (priceZone == PriceZone.IDEAL && (trendGrade == TrendGrade.S_PLUS_PLUS || trendGrade == TrendGrade.A)
 				&& (rsiZone == RsiZone.IDEAL || rsiZone == RsiZone.STRONG) && (volumeZone == VolumeZone.SURGE
 						|| volumeZone == VolumeZone.STRONG || volumeZone == VolumeZone.ABOVE_AVG))
@@ -492,9 +608,6 @@ public class CalculationService {
 		return "50%";
 	}
 
-	// =========================================================================
-	// STOP LOSS
-	// =========================================================================
 	private double resolveStopLoss(double price, double ma20, double ma50, TimeframeConfig tf, Double atr,
 			List<String> warnings) {
 		if (atr != null && atr > 0) {
@@ -509,9 +622,6 @@ public class CalculationService {
 		return round4(anchor * (1 - tf.slBuffer()));
 	}
 
-	// =========================================================================
-	// REGIME
-	// =========================================================================
 	private MarketRegime resolveRegime(double price, double ma200, List<String> warnings, List<String> confluences) {
 		double pct = (price - ma200) / ma200 * 100;
 		if (price > ma200 * 1.02) {
@@ -526,9 +636,6 @@ public class CalculationService {
 		return MarketRegime.NEUTRAL;
 	}
 
-	// =========================================================================
-	// RESPONSE BUILDERS
-	// =========================================================================
 	private Map<String, Object> buildFilterSteps(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, MarketRegime regime, MaCalculationRequest req, double pctAboveMA20,
 			double ma20VsMa50Pct) {
@@ -592,21 +699,21 @@ public class CalculationService {
 
 	private String buildAdvice(RiskLevel level, PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, TimeframeConfig tf, double pctAboveMA20, double ma5, double ma20, double ma50,
-			double ma200) {
+			double ma200, HoldCalculation hold) {
 		String posSize = resolvePositionSize(priceZone, trendGrade, rsiZone, volumeZone);
 		return switch (level) {
 		case HIGH_SKIP -> String.format("[%s] SKIP — %s. Wait for all 5 filters to align.", tf.label(),
 				buildSkipReason(priceZone, trendGrade, rsiZone, volumeZone));
 		case MEDIUM_PROCEED -> String.format(
 				"[%s] PROCEED with caution — %s zone, Grade %s, RSI %s, Vol %s. "
-						+ "Reduce size to %s. Ideal entry: MA5 (%.4f). Hold: %s.",
+						+ "Reduce size to %s. Ideal entry: MA5 (%.4f). Hold: %s (target %d days).",
 				tf.label(), priceZone.label, trendGrade.grade, rsiZone.label, volumeZone.label, posSize, ma5,
-				tf.holdDuration());
+				hold.label(), hold.targetDays());
 		case LOW_PROCEED -> String.format(
 				"[%s] PROCEED — All filters green. %s zone ✅ Grade %s ✅ RSI %s ✅ Vol %s ✅. "
-						+ "Position size: %s. MA200=%.4f confirms bull. Hold: %s.",
+						+ "Position size: %s. MA200=%.4f confirms bull. Hold: %s (target %d days).",
 				tf.label(), priceZone.label, trendGrade.grade, rsiZone.label, volumeZone.label, posSize, ma200,
-				tf.holdDuration());
+				hold.label(), hold.targetDays());
 		};
 	}
 
@@ -650,19 +757,26 @@ public class CalculationService {
 		return f;
 	}
 
-	private String buildSummary(double f1, double f2, PriceZone zone, TrendGrade grade, TimeframeConfig tf) {
-		return String.format("[%s] Price %.2f%% %s MA20 (%s). Trend maturity: %.2f%% → Grade %s — %s.", tf.label(),
-				Math.abs(f1), f1 >= 0 ? "above" : "below", zone.label, f2, grade.grade, grade.meaning);
+	private String buildSummary(double f1, double f2, PriceZone zone, TrendGrade grade, TimeframeConfig tf,
+			HoldCalculation hold) {
+		return String.format(
+				"[%s] Price %.2f%% %s MA20 (%s). Trend maturity: %.2f%% → Grade %s — %s. Expected hold: %s (target day %d).",
+				tf.label(), Math.abs(f1), f1 >= 0 ? "above" : "below", zone.label, f2, grade.grade, grade.meaning,
+				hold.label(), hold.targetDays());
 	}
 
 	private Map<String, Object> buildEntryGuidance(EntryDecision decision, TrendGrade grade, PriceZone zone,
-			RsiZone rsiZone, VolumeZone volumeZone, double ma20, double ma50, TimeframeConfig tf) {
+			RsiZone rsiZone, VolumeZone volumeZone, double ma20, double ma50, TimeframeConfig tf,
+			HoldCalculation hold) {
 		Map<String, Object> g = new LinkedHashMap<>();
 		g.put("action", decision.label);
 		g.put("positionSize", decision.positionSize);
 		g.put("note", decision.note);
 		g.put("rsiStatus", rsiZone.label);
 		g.put("volumeStatus", volumeZone.label);
+		g.put("holdDays", hold.label());
+		g.put("targetDay", hold.targetDays());
+		g.put("exitRule", hold.exitRule());
 		g.put("waitFor", switch (zone) {
 		case BELOW_MA20, OVEREXTENDED, STRETCHED -> String.format("Pullback to MA20 (%.4f) or MA50 (%.4f)", ma20, ma50);
 		default -> "Current price is acceptable entry zone";
@@ -699,7 +813,7 @@ public class CalculationService {
 
 	private Map<String, Object> buildTradePlan(double price, double ma20, double ma50, TimeframeConfig tf,
 			double entryIdeal, double entryMax, double stopLoss, double risk_R, double tp1, double tp2, double tp3,
-			Double atr) {
+			Double atr, HoldCalculation hold) {
 		Map<String, Object> plan = new LinkedHashMap<>();
 		plan.put("entryIdeal", entryIdeal);
 		plan.put("entryMax", entryMax);
@@ -713,7 +827,9 @@ public class CalculationService {
 						: String.format("MA-buffer: %.4f%% below anchor (MA20=%.4f / MA50=%.4f)", tf.slBuffer() * 100,
 								ma20, ma50));
 		plan.put("riskPerUnit", risk_R);
-		plan.put("holdDuration", tf.holdDuration());
+		plan.put("holdDuration", hold.label());
+		plan.put("targetDay", hold.targetDays());
+		plan.put("exitRule", hold.exitRule());
 		plan.put("tp1", tp1);
 		plan.put("tp1Note", String.format("Sell 40%% at %.4f  (R:R 1:1.0) — move SL to breakeven", tp1));
 		plan.put("tp2", tp2);
@@ -723,9 +839,6 @@ public class CalculationService {
 		return plan;
 	}
 
-	// =========================================================================
-	// HELPERS
-	// =========================================================================
 	private PriceZone resolvePriceZone(double pct) {
 		if (pct < 0)
 			return PriceZone.BELOW_MA20;
@@ -766,94 +879,23 @@ public class CalculationService {
 		return Math.round(v);
 	}
 
-	// =========================================================================
-	// ENUMS & RECORDS
-	// =========================================================================
+	private record HoldRange(int min, int max, int target) {
+		HoldRange shiftFaster(int n) {
+			return new HoldRange(Math.max(1, min - n), Math.max(1, max - n), Math.max(1, target - n));
+		}
+
+		HoldRange shiftSlower(int n) {
+			return new HoldRange(min + n, max + n, target + n);
+		}
+	}
+
+	public record HoldCalculation(int minDays, int maxDays, int targetDays, String basis, String exitRule) {
+		public String label() {
+			return minDays == maxDays ? minDays + " day" + (minDays > 1 ? "s" : "") : minDays + "–" + maxDays + " days";
+		}
+	}
+
 	private record SignalScore(int score, int maxScore, String grade) {
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum PriceZone {
-		BELOW_MA20("Below MA20", "🚫", "Support broken — downtrend"),
-		IDEAL("Ideal Zone", "🎯", "0–2% above MA20 — best entry zone"),
-		ACCEPTABLE("Acceptable", "🟢", "2–5% above MA20 — valid entry"),
-		STRETCHED("Stretched", "🟡", "5–10% above MA20 — reduce size"),
-		OVEREXTENDED("Overextended", "🔴", ">10% above MA20 — do not chase");
-
-		private final String label, emoji, meaning;
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum TrendGrade {
-		BEARISH("BEARISH", "🔻", "MA20 below MA50 — downtrend, avoid longs"),
-		FLAT("FLAT", "➡️", "<1% gap — crossover zone, wait for separation"),
-		S_PLUS_PLUS("S++", "🚀", "1–3% gap — trend just began, highest probability"),
-		A("A", "✅", "3–5% gap — healthy trend, good entry"), B("B", "⚠️", "5–8% gap — maturing trend, smaller size"),
-		C("C", "🟡", "8–10% gap — late trend, tight SL required"),
-		EXHAUSTED("EXHAUSTED", "🛑", ">10% gap — trend exhausted, do not chase");
-
-		private final String grade, emoji, meaning;
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum RsiZone {
-		EXTREME_OB("Extremely Overbought (>80)", "🔴", "Hard skip — reversal imminent"),
-		OVERBOUGHT("Overbought (70–80)", "🟡", "Reduce size 50%"),
-		STRONG("Strong Momentum (65–70)", "🟢", "Valid — watch closely"),
-		IDEAL("Ideal Zone (50–65)", "✅", "Best momentum zone"),
-		RECOVERING("Recovering (40–50)", "⚪", "Wait for RSI to cross 50"),
-		WEAK("Weak (<40)", "🔴", "Skip — momentum failing"), UNKNOWN("Not Provided", "⚪", "Unconfirmed");
-
-		private final String label, emoji, meaning;
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum VolumeZone {
-		SURGE("Surge (≥2.0×)", "🚀", "Institutional / news driven"),
-		STRONG("Strong (1.5–2.0×)", "✅", "Clear accumulation"),
-		ABOVE_AVG("Above Avg (1.2–1.5×)", "🟢", "Buyers stepping in"),
-		NORMAL("Normal (0.8–1.2×)", "⚪", "No strong conviction"), WEAK("Weak (<0.8×)", "🔴", "No buyers — avoid"),
-		UNKNOWN("Not Provided", "⚪", "Unconfirmed");
-
-		private final String label, emoji, meaning;
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum EntryDecision {
-		PROCEED_FULL("PROCEED ✅", "🚀", "100%", "All 5 filters aligned — full position"),
-		PROCEED_REDUCED("PROCEED (reduced) 🟡", "🟡", "50%", "Some filters yellow — reduce size"),
-		WAIT_PULLBACK("WAIT ⏳", "⏳", "0%", "Fresh trend (S++) but price overextended — wait for MA20"),
-		SKIP_BEARISH("SKIP 🔻", "🔻", "0%", "MA20 below MA50 — no long trades"),
-		SKIP_EXHAUSTED("SKIP 🛑", "🛑", "0%", "Trend >10% exhausted — high reversal risk"),
-		SKIP_BELOW_MA20("SKIP 🚫", "🚫", "0%", "Price below MA20 — support broken"),
-		SKIP_OVEREXTENDED("SKIP 🔴", "🔴", "0%", "Price >10% above MA20 — do not chase"),
-		SKIP_RSI_OB("SKIP 🔴", "🔴", "0%", "RSI >80 — extremely overbought"),
-		SKIP_RSI_WEAK("SKIP 🔴", "🔴", "0%", "RSI <40 — momentum failing"),
-		SKIP_LOW_VOLUME("SKIP 🔴", "🔴", "0%", "Volume ratio <0.8× — no buyers");
-
-		private final String label, emoji, positionSize, note;
-	}
-
-	@Getter
-	@RequiredArgsConstructor
-	enum RiskLevel {
-		LOW_PROCEED("Low Risk", "🟢", "PROCEED"), MEDIUM_PROCEED("Medium Risk", "🟡", "PROCEED"),
-		HIGH_SKIP("High Risk", "🔴", "SKIP");
-
-		private final String label, emoji, decision;
-	}
-
-	enum MarketRegime {
-		BULL, BEAR, NEUTRAL
-	}
-
-	enum TrendStrength {
-		STRONG, MODERATE, WEAK
 	}
 
 	private record TimeframeConfig(String label, double lowThreshold, double highThreshold, double slBuffer,

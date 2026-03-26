@@ -46,29 +46,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * ═══════════════════════════════════════════════════════════════ UNIFIED
- * SCREENER CONTROLLER
- *
- * Base path: /api/{market} where market = MY | US (case-insensitive)
- *
- * Endpoints: ──────────────────────────────────────────────────────────────
- * POST /api/{market}/scan/{code} — Single stock scan POST
- * /api/{market}/scan/batch — Batch scan (≤ 20 stocks) GET
- * /api/{market}/scan/range — Full market range scan (main endpoint) GET
- * /api/{market}/watchlist/tomorrow — Tomorrow's trade list from DB GET
- * /api/{market}/result/today — Today's DB results GET
- * /api/{market}/result/{code} — Historical results for one stock
- *
- * MY examples: POST /api/my/scan/5243 GET
- * /api/my/scan/range?minPrice=0.10&maxPrice=1.00&minScore=70 GET
- * /api/my/watchlist/tomorrow
- *
- * US examples: POST /api/us/scan/AAPL GET
- * /api/us/scan/range?minPrice=5&maxPrice=50&exchange=NASDAQ GET
- * /api/us/watchlist/tomorrow
- * ═══════════════════════════════════════════════════════════════
- */
 @Slf4j
 @RestController
 @RequestMapping("api/{market}")
@@ -109,11 +86,6 @@ public class ScreenerController {
 		}
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// POST /api/{market}/scan/{code} — single stock
-	// MY: POST /api/my/scan/5243
-	// US: POST /api/us/scan/AAPL
-	// ─────────────────────────────────────────────────────────────────────────
 	@PostMapping("scan/{code}")
 	public ResponseEntity<Map<String, Object>> scanOne(@PathVariable String market, @PathVariable String code) {
 		Market m = parseMarket(market);
@@ -128,10 +100,6 @@ public class ScreenerController {
 		return ResponseEntity.ok(buildSingleResponse(m, result.get()));
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// POST /api/{market}/scan/batch — up to 20 stocks
-	// Body: {"codes":["5243","1155"]} (MY) or {"codes":["AAPL","MSFT"]} (US)
-	// ─────────────────────────────────────────────────────────────────────────
 	@PostMapping("scan/batch")
 	public ResponseEntity<Map<String, Object>> scanBatch(@PathVariable String market,
 			@RequestBody Map<String, List<String>> body) {
@@ -166,17 +134,6 @@ public class ScreenerController {
 						"scanTime", LocalDateTime.now(m.zoneId).toString(), "results", results));
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/scan/range — MAIN SCAN ENDPOINT
-	//
-	// Discovers candidates via Yahoo screener then runs full technical analysis.
-	// Best time to run: after market close.
-	//
-	// MY: GET /api/my/scan/range?minPrice=0.10&maxPrice=1.00
-	// GET /api/my/scan/range?minPrice=0.50&maxPrice=2.00&minScore=75
-	// US: GET /api/us/scan/range?minPrice=5&maxPrice=50&exchange=NASDAQ
-	// GET /api/us/scan/range?minPrice=10&maxPrice=100&exchange=ALL&minScore=75
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("scan/range")
 	public ResponseEntity<Map<String, Object>> scanByRange(@PathVariable String market, @RequestParam double minPrice,
 			@RequestParam double maxPrice, @RequestParam(defaultValue = "70") double minScore,
@@ -204,9 +161,6 @@ public class ScreenerController {
 		return ResponseEntity.ok(resp);
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/watchlist/tomorrow — tomorrow's trade list from DB
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("watchlist/tomorrow")
 	public ResponseEntity<Map<String, Object>> getWatchlistTomorrow(@PathVariable String market,
 			@RequestParam(required = false) Double minPrice, @RequestParam(required = false) Double maxPrice,
@@ -244,9 +198,6 @@ public class ScreenerController {
 		return ResponseEntity.ok(resp);
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/result/today — DB results for today
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("result/today")
 	public ResponseEntity<Map<String, Object>> getTodayResults(@PathVariable String market) {
 		Market m = parseMarket(market);
@@ -267,9 +218,6 @@ public class ScreenerController {
 		return ResponseEntity.ok(resp);
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/result/{code} — historical results for one stock
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("result/{code}")
 	public ResponseEntity<?> getHistory(@PathVariable String market, @PathVariable String code) {
 		Market m = parseMarket(market);
@@ -403,28 +351,6 @@ public class ScreenerController {
 		return d;
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/ma/calculation/{marketPrice}/{ma5}/{ma20}
-	//
-	// MA Position & Risk Calculator
-	//
-	// Validates two conditions before calculating:
-	// 1. marketPrice must be above BOTH ma5 AND ma20 (bullish alignment)
-	// 2. ma5 must be above ma20 (short-term > long-term = uptrend)
-	//
-	// If either condition fails → SKIP with reason.
-	// If both pass → calculate how far price is above ma20 and label risk.
-	//
-	// Risk label based on % above MA20:
-	// < 5% → Low Risk (price just crossed, early entry)
-	// 5% – 10% → Medium Risk (momentum building, still tradeable)
-	// > 10% → High Risk (extended, chasing — avoid new entry)
-	//
-	// Example:
-	// GET /api/ma/calculation/1.42/1.38/1.31
-	// marketPrice=1.42, ma5=1.38, ma20=1.31
-	// % above MA20 = (1.42 - 1.31) / 1.31 * 100 = 8.40% → Medium Risk
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("ma/calculation/{marketPrice}/{ma5}/{ma20}")
 	public ResponseEntity<Map<String, Object>> maCalculation(@PathVariable double marketPrice, @PathVariable double ma5,
 			@PathVariable double ma20, @RequestParam(defaultValue = "DAILY") String timeframe) {
@@ -432,10 +358,6 @@ public class ScreenerController {
 		Map<String, Object> resp = new LinkedHashMap<>();
 		resp.put("input", Map.of("marketPrice", marketPrice, "ma5", ma5, "ma20", ma20, "timeframe", tf.label(),
 				"holdDuration", tf.holdDuration()));
-		// ── Validation 1: price must be at or above MA20 (key support level) ──
-		// Price below MA20 = support broken = SKIP
-		// Price below MA5 but above/at MA20 = pullback to MA20 = valid entry
-		// opportunity
 		if (marketPrice < ma20) {
 			resp.put("decision", "SKIP");
 			resp.put("emoji", "🚫");
@@ -445,7 +367,6 @@ public class ScreenerController {
 					"note", "Price below MA20 = downtrend. Wait for price to reclaim MA20."));
 			return ResponseEntity.ok(resp);
 		}
-		// ── Validation 2: MA5 must be at or above MA20 (golden cross confirmed) ─
 		if (ma5 < ma20) {
 			resp.put("decision", "SKIP");
 			resp.put("emoji", "🚫");
@@ -457,15 +378,9 @@ public class ScreenerController {
 							"note", "Wait for MA5 ≥ MA20 golden cross."));
 			return ResponseEntity.ok(resp);
 		}
-		// ── Calculation: how far is price above MA20? ─────────────────────────
 		double pctAboveMA20 = (marketPrice - ma20) / ma20 * 100;
 		double pctAboveMA5 = (marketPrice - ma5) / ma5 * 100;
 		double ma5AboveMA20 = (ma5 - ma20) / ma20 * 100;
-		// ── Risk level: fixed thresholds per spec ─────────────────────────────
-		// 1% – 5% → Low Risk → PROCEED (price just above MA20, ideal entry)
-		// 5% – 10% → Medium Risk → PROCEED (extended but acceptable, reduce size)
-		// > 10% → High Risk → SKIP (overextended, wait for pullback)
-		// < 1% → At MA20 → PROCEED (price holding MA20 as support)
 		String risk;
 		String riskEmoji;
 		String riskDecision;
@@ -506,13 +421,11 @@ public class ScreenerController {
 						"ma5AboveMA20", String.format("%.2f%%", ma5AboveMA20), "result",
 						String.format("(%.4f - %.4f) / %.4f × 100 = %.2f%%", marketPrice, ma20, ma20, pctAboveMA20),
 						"thresholds", "≤5% = Low Risk PROCEED | 5–10% = Medium Risk PROCEED | >10% = High Risk SKIP"));
-		// High Risk — skip, no trade plan
 		if ("SKIP".equals(riskDecision)) {
 			resp.put("maAlignment", Map.of("priceAboveMA5", true, "priceAboveMA20", true, "ma5AboveMA20", true, "trend",
 					"⚠️ Bullish but overextended — wait for pullback"));
 			return ResponseEntity.ok(resp);
 		}
-		// ── Trade plan (Low and Medium Risk only) ─────────────────────────────
 		double entryIdeal = round4(ma5);
 		double entryMax = round4(marketPrice);
 		double stopLoss = round4(ma20 * (1.0 - tf.slBuffer()));
@@ -612,22 +525,6 @@ public class ScreenerController {
 		};
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// TIMEFRAME CONFIG
-	// Centralised thresholds so both MA and EMA endpoints share the same logic.
-	//
-	// label : display name in response
-	// lowThreshold : % above MA20/EMA21 = LOW RISK ceiling
-	// highThreshold: % above MA20/EMA21 = MEDIUM RISK ceiling (above = HIGH)
-	// slBuffer : fractional buffer below support for stop loss (0.001 = 0.1%)
-	// holdDuration : expected trade hold time for guidance text
-	//
-	// Why thresholds tighten on lower timeframes:
-	// On a daily chart a 7% extension takes days to form.
-	// On a 15-min chart a 7% extension happens in minutes — mean reversion is
-	// instant.
-	// Lower timeframes need tighter bands to give accurate risk guidance.
-	// ─────────────────────────────────────────────────────────────────────────
 	private record TimeframeConfig(String label, double lowThreshold, double highThreshold, double slBuffer,
 			String holdDuration) {
 		static TimeframeConfig of(String raw) {
@@ -646,60 +543,10 @@ public class ScreenerController {
 		}
 	}
 
-	/** Rounds to 4 decimal places — avoids floating point noise in price fields */
 	private double round4(double v) {
 		return Math.round(v * 10000.0) / 10000.0;
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET
-	// /api/{market}/ema/calculation/{marketPrice}/{ema9}/{ema21}/{ema50}/{ema200}
-	//
-	// EMA Position & Risk Calculator — uses the full EMA stack (9/21/50/200).
-	//
-	// Why EMA over MA:
-	// EMA gives more weight to recent prices — reacts faster to price changes.
-	// EMA9 = very short-term momentum (scalp / day trade trigger)
-	// EMA21 = short-term trend (swing trade baseline)
-	// EMA50 = medium-term trend (institutional reference)
-	// EMA200= long-term trend (bull/bear market dividing line)
-	//
-	// Validation — ALL 4 must pass for PROCEED:
-	// 1. price > EMA9 > EMA21 > EMA50 > EMA200 (perfect bullish stack)
-	// Partial stack (price > EMA9 > EMA21 only) → PROCEED with lower grade
-	// 2. If price < EMA200 → hard SKIP regardless of other EMAs
-	//
-	// Stack grades:
-	// FULL : price > EMA9 > EMA21 > EMA50 > EMA200 → strongest signal
-	// PARTIAL_STRONG : price > EMA9 > EMA21 > EMA50 → good, EMA200 below
-	// PARTIAL_WEAK : price > EMA9 > EMA21 only → short-term only
-	// NONE : any EMA above price → SKIP
-	//
-	// Risk level — based on % above EMA21 (swing trade baseline):
-	// < 3% → LOW RISK (tight to EMA21 — ideal entry)
-	// 3-7% → MEDIUM RISK (extended, consider waiting for pullback)
-	// > 7% → HIGH RISK (overextended, likely to revert to EMA21)
-	//
-	// Entry strategy:
-	// Ideal = pullback to EMA9 (momentum traders buy here)
-	// Normal = pullback to EMA21 (swing traders buy here)
-	// Max = current price (never chase above current close)
-	//
-	// Stop loss = just below EMA21 (0.1% buffer)
-	// If EMA21 breaks → short-term trend invalidated
-	//
-	// Tick-adjusted targets use EMA21 as the anchor:
-	// TP1 = entry + 1.0R (sell 40%)
-	// TP2 = entry + 2.0R (sell 40%) — move SL to breakeven
-	// TP3 = entry + 3.5R (sell 20%) — trail or hold
-	//
-	// Examples:
-	// GET /api/my/ema/calculation/1.42/1.39/1.35/1.28/1.10 → FULL stack, Low Risk
-	// GET /api/my/ema/calculation/1.42/1.39/1.35/1.45/1.10 → SKIP (EMA50 above
-	// price)
-	// GET /api/my/ema/calculation/0.52/0.53/0.51/0.48/0.45 → SKIP (price below
-	// EMA9)
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("ema/calculation/{marketPrice}/{ema9}/{ema21}/{ema50}/{ema200}")
 	public ResponseEntity<Map<String, Object>> emaCalculation(@PathVariable double marketPrice,
 			@PathVariable double ema9, @PathVariable double ema21, @PathVariable double ema50,
@@ -708,7 +555,6 @@ public class ScreenerController {
 		Map<String, Object> resp = new LinkedHashMap<>();
 		resp.put("input", Map.of("marketPrice", marketPrice, "ema9", ema9, "ema21", ema21, "ema50", ema50, "ema200",
 				ema200, "timeframe", tf.label(), "holdDuration", tf.holdDuration()));
-		// ── Individual checks ─────────────────────────────────────────────────
 		boolean aboveEma9 = marketPrice > ema9;
 		boolean aboveEma21 = marketPrice > ema21;
 		boolean aboveEma50 = marketPrice > ema50;
@@ -716,7 +562,6 @@ public class ScreenerController {
 		boolean ema9AboveEma21 = ema9 > ema21;
 		boolean ema21AboveEma50 = ema21 > ema50;
 		boolean ema50AboveEma200 = ema50 > ema200;
-		// Build readable checks block
 		Map<String, Object> checks = new LinkedHashMap<>();
 		checks.put("priceAboveEMA9", aboveEma9 ? "✅ PASS" : "❌ FAIL");
 		checks.put("priceAboveEMA21", aboveEma21 ? "✅ PASS" : "❌ FAIL");
@@ -726,7 +571,6 @@ public class ScreenerController {
 		checks.put("ema21AboveEMA50", ema21AboveEma50 ? "✅ PASS" : "❌ FAIL");
 		checks.put("ema50AboveEMA200", ema50AboveEma200 ? "✅ PASS" : "❌ FAIL");
 		resp.put("checks", checks);
-		// ── Hard block: price below EMA200 = bear market territory ───────────
 		if (!aboveEma200) {
 			resp.put("decision", "SKIP");
 			resp.put("emoji", "🚫");
@@ -740,7 +584,6 @@ public class ScreenerController {
 					"Hard skip. Wait for price to reclaim EMA200 and hold above it for at least 3 trading days before considering any long position.");
 			return ResponseEntity.ok(resp);
 		}
-		// ── Hard block: price below EMA21 = short-term trend broken ──────────
 		if (!aboveEma21) {
 			resp.put("decision", "SKIP");
 			resp.put("emoji", "🚫");
@@ -754,7 +597,6 @@ public class ScreenerController {
 					"Skip. Wait for price to close above EMA21 with a bullish candle. EMA21 reclaim = potential re-entry.");
 			return ResponseEntity.ok(resp);
 		}
-		// ── Hard block: EMA9 above price = very short-term trend broken ──────
 		if (!aboveEma9) {
 			resp.put("decision", "SKIP");
 			resp.put("emoji", "🚫");
@@ -770,7 +612,6 @@ public class ScreenerController {
 							+ "Do not enter until price closes above EMA9 (%.4f).", ema21, ema21, ema9));
 			return ResponseEntity.ok(resp);
 		}
-		// ── Determine stack grade ─────────────────────────────────────────────
 		boolean fullStack = aboveEma9 && ema9AboveEma21 && ema21AboveEma50 && ema50AboveEma200;
 		boolean partialStrongStack = aboveEma9 && ema9AboveEma21 && ema21AboveEma50 && !ema50AboveEma200;
 		boolean partialWeakStack = aboveEma9 && ema9AboveEma21 && !ema21AboveEma50;
@@ -799,7 +640,6 @@ public class ScreenerController {
 			stackEmoji = "⚠️";
 			stackNote = "EMAs not in clean order. Choppy/sideways market. No clear trend edge.";
 		}
-		// ── Risk level based on % above EMA21 ────────────────────────────────
 		double pctAboveEma21 = (marketPrice - ema21) / ema21 * 100;
 		double pctAboveEma9 = (marketPrice - ema9) / ema9 * 100;
 		double pctAboveEma50 = (marketPrice - ema50) / ema50 * 100;
@@ -830,28 +670,21 @@ public class ScreenerController {
 							+ "If entering now: scalp only with very tight SL. Hold: %s.",
 					tf.label(), pctAboveEma21, tf.highThreshold(), tf.holdDuration());
 		}
-		// ── Trade plan ────────────────────────────────────────────────────────
-		// Entry ideal = pullback to EMA9 (momentum continuation entry)
-		// Entry swing = pullback to EMA21 (conservative swing entry)
-		// Stop loss = just below EMA21 (support invalidation level)
 		double entryMomentum = round4(ema9);
 		double entrySwing = round4(ema21);
 		double entryMax = round4(marketPrice);
 		double stopLoss = round4(ema21 * (1.0 - tf.slBuffer()));
 		double riskMomentum = entryMomentum - stopLoss;
 		double riskSwing = entrySwing - stopLoss;
-		// Use momentum entry for TP calculations (tighter, higher R:R)
 		double rBase = riskMomentum > 0 ? riskMomentum : riskSwing;
 		double tp1 = round4(entryMomentum + rBase * 1.0);
 		double tp2 = round4(entryMomentum + rBase * 2.0);
 		double tp3 = round4(entryMomentum + rBase * 3.5);
-		// If price already near EMA9 (within 0.5%), enter at current price
 		if (pctAboveEma9 <= 0.5) {
 			tp1 = round4(marketPrice + rBase * 1.0);
 			tp2 = round4(marketPrice + rBase * 2.0);
 			tp3 = round4(marketPrice + rBase * 3.5);
 		}
-		// ── EMA distance summary ──────────────────────────────────────────────
 		Map<String, Object> emaDistances = new LinkedHashMap<>();
 		emaDistances.put("aboveEMA9", String.format("%.2f%%", pctAboveEma9));
 		emaDistances.put("aboveEMA21", String.format("%.2f%%", pctAboveEma21));

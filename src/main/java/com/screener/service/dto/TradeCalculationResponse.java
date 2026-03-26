@@ -12,12 +12,12 @@ import lombok.Data;
 public class TradeCalculationResponse {
 	private String ticker;
 	private String timeframe;
-	private String marketRegime; // BULL / BEAR / NEUTRAL
-	private String trendStrength; // STRONG / MODERATE / WEAK
-	private String signalQuality; // A / B / C / INVALID
+	private String marketRegime;
+	private String trendStrength;
+	private String signalQuality;
 	private Map<String, Object> tradePlan;
-	private List<String> warnings; // e.g. "Price far above MA200 — extended"
-	private List<String> confluences; // e.g. "MA5 > MA20 > MA50 aligned"
+	private List<String> warnings;
+	private List<String> confluences;
 	private Instant calculatedAt;
 	private Double rsi14;
 	private Double atr14;

@@ -28,52 +28,6 @@ import com.screener.service.util.ThreadUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * ═══════════════════════════════════════════════════════════════════════════
- * FUNDAMENTAL ANALYSIS CONTROLLER
- *
- * New endpoints at /api/{market}/fundamental/
- *
- * ── Single stock ──────────────────────────────────────────────────────────
- * GET /api/my/fundamental/5243 GET /api/us/fundamental/AAPL
- *
- * Returns: verdict (BUY_SUPPORTED | WATCH | SKIP) + scored reasons + all key
- * financial metrics in one call.
- *
- * ── Combined technical + fundamental ──────────────────────────────────────
- * POST /api/my/fundamental/5243/full POST /api/us/fundamental/AAPL/full
- *
- * Runs BOTH technical scan AND fundamental analysis in parallel. Returns a
- * combined report with: - Technical: BUY / WATCH / IGNORE (MACD, EMA, volume
- * etc.) - Fundamental: BUY_SUPPORTED / WATCH / SKIP (financials) - Combined
- * verdict: STRONG_BUY | BUY | CAUTIOUS | SKIP - Why: combined reasons from both
- * engines
- *
- * ── Batch fundamental ─────────────────────────────────────────────────────
- * POST /api/my/fundamental/batch Body: {"codes":["5243","1155","7277"]}
- *
- * Scans fundamentals for up to 10 stocks. Sequential with 500ms delay between
- * each to respect Yahoo rate limits.
- *
- * ── Combined verdict logic ─────────────────────────────────────────────────
- *
- * Technical BUY + Fundamental BUY_SUPPORTED → STRONG_BUY 🏆 → Execute with full
- * Grade sizing. Both engines agree.
- *
- * Technical BUY + Fundamental WATCH → BUY ✅ → Execute but reduce to 70%
- * position. Mixed signals.
- *
- * Technical BUY + Fundamental SKIP → CAUTIOUS ⚠ → Skip or scalp only. Technical
- * signal exists but business fundamentals are deteriorating. The MACD cross may
- * just be dead-cat bounce.
- *
- * Technical WATCH + Fundamental BUY_SUPPORTED → WATCH_QUALITY ⭐ → Put on
- * watchlist. Good business, waiting for technical trigger.
- *
- * Technical IGNORE + Any fundamental → SKIP ❌ Any technical + Fundamental SKIP
- * (critical) → SKIP ❌
- * ═══════════════════════════════════════════════════════════════════════════
- */
 @RestController
 @RequestMapping("api/{market}/fundamental")
 @RequiredArgsConstructor
@@ -82,10 +36,6 @@ public class FundamentalController {
 	private final FundamentalService fundamentalService;
 	private final AnalysisService analysisService;
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/fundamental/{code}
-	// Pure fundamental analysis only
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("{code}")
 	public ResponseEntity<Map<String, Object>> getFundamentals(@PathVariable String market, @PathVariable String code) {
 		Market m = parseMarket(market);
@@ -96,10 +46,6 @@ public class FundamentalController {
 		return ResponseEntity.ok(buildFundamentalResponse(m, result));
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// POST /api/{market}/fundamental/{code}/full
-	// Technical + Fundamental combined — the most useful endpoint
-	// ─────────────────────────────────────────────────────────────────────────
 	@PostMapping("{code}/full")
 	public ResponseEntity<Map<String, Object>> getFullAnalysis(@PathVariable String market, @PathVariable String code) {
 		Market m = parseMarket(market);
@@ -123,10 +69,6 @@ public class FundamentalController {
 		return ResponseEntity.ok(buildCombinedResponse(m, code, techResult, fundResult));
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// POST /api/{market}/fundamental/batch
-	// Body: {"codes":["5243","1155","7277"]}
-	// ─────────────────────────────────────────────────────────────────────────
 	@PostMapping("batch")
 	public ResponseEntity<Map<String, Object>> batchFundamentals(@PathVariable String market,
 			@RequestBody Map<String, List<String>> body) {
@@ -171,25 +113,6 @@ public class FundamentalController {
 		return ResponseEntity.ok(resp);
 	}
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// GET /api/{market}/fundamental?codes=5243,1155,7277
-	// /api/{market}/fundamental?codes=5243&codes=1155&codes=7277
-	//
-	// Multi-stock fundamental scan via request param — no request body needed.
-	// Supports two styles:
-	// Comma-separated : ?codes=5243,1155,7277
-	// Repeated params : ?codes=5243&codes=1155&codes=7277
-	// Mixed : ?codes=5243,1155&codes=7277 (all are merged)
-	//
-	// Optional params:
-	// detail=false (default) → compact summary per stock (verdict + top flags)
-	// detail=true → full metrics for every stock
-	//
-	// Examples:
-	// GET /api/my/fundamental?codes=5243,1155,7277
-	// GET /api/my/fundamental?codes=5243&codes=1155&codes=7277&detail=true
-	// GET /api/us/fundamental?codes=AAPL,MSFT,NVDA,TSLA
-	// ─────────────────────────────────────────────────────────────────────────
 	@GetMapping("batch")
 	public ResponseEntity<Map<String, Object>> getMultiFundamentals(@PathVariable String market,
 			@RequestParam List<String> codes, @RequestParam(defaultValue = "false") boolean detail) {
@@ -278,11 +201,6 @@ public class FundamentalController {
 		return item;
 	}
 
-	/**
-	 * Extracts the verdict string from either compact or full response map. Compact
-	 * (detail=false): verdict is a plain String. Full (detail=true) : verdict is a
-	 * nested Map with key "result".
-	 */
 	@SuppressWarnings("unchecked")
 	private String extractVerdict(Map<String, Object> item) {
 		Object v = item.get("verdict");

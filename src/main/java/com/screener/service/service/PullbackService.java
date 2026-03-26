@@ -9,14 +9,15 @@ import org.springframework.stereotype.Service;
 
 import com.screener.service.dto.PullbackRequest;
 import com.screener.service.dto.PullbackResult;
+import com.screener.service.enums.Momentum;
+import com.screener.service.enums.Phase;
 
 @Service
 public class PullbackService {
-	// ── Thresholds ─────────────────────────────────────────────────────────
-	private static final double PULLBACK_MIN_PCT = 1.0; // min drop to call it pullback
-	private static final double PULLBACK_MAX_PCT = 8.0; // max drop before it's reversal
-	private static final double MA5_TOUCH_BUFFER = 0.3; // % tolerance to call MA5 "touched"
-	private static final double CONSOLIDATION_BAND = 0.5; // % range = consolidating
+	private static final double PULLBACK_MIN_PCT = 1.0;
+	private static final double PULLBACK_MAX_PCT = 8.0;
+	private static final double MA5_TOUCH_BUFFER = 0.3;
+	private static final double CONSOLIDATION_BAND = 0.5;
 
 	public PullbackResult detect(PullbackRequest req) {
 		List<Double> prices = req.priceHistory();
@@ -26,86 +27,61 @@ public class PullbackService {
 		double current = req.currentPrice();
 		double ma5 = req.ma5();
 		double ma20 = req.ma20();
-		// ── 1. Find recent swing high (peak within last N candles) ──────────
 		int lookback = Math.min(prices.size(), 20);
 		double recentHigh = findRecentHigh(prices, lookback);
 		double recentLow = findRecentLow(prices, lookback);
-		// ── 2. Measure pullback depth from swing high ───────────────────────
 		double pullbackDepth = recentHigh > 0 ? (recentHigh - current) / recentHigh * 100 : 0;
-		// ── 3. Measure price momentum (last 3 candles direction) ────────────
 		Momentum momentum = calcMomentum(prices);
-		// ── 4. Detect if price is near MA5 (pullback touch zone) ────────────
 		double distToMA5Pct = Math.abs(current - ma5) / ma5 * 100;
 		boolean touchingMA5 = distToMA5Pct <= MA5_TOUCH_BUFFER;
-		// ── 5. Detect if price is near MA20 (deep pullback zone) ────────────
 		double distToMA20Pct = Math.abs(current - ma20) / ma20 * 100;
 		boolean touchingMA20 = distToMA20Pct <= MA5_TOUCH_BUFFER;
-		// ── 6. Price structure: higher highs + higher lows = uptrend ────────
 		boolean higherHighs = isHigherHighs(prices);
 		boolean higherLows = isHigherLows(prices);
-		// ── 7. Volatility (standard deviation of last N closes) ─────────────
 		double volatility = calcVolatility(prices, lookback);
-		// ── 8. Classify phase ────────────────────────────────────────────────
 		Phase phase = classifyPhase(current, recentHigh, recentLow, pullbackDepth, momentum, ma5, ma20, higherHighs,
 				higherLows, volatility);
-		// ── 9. Determine entry signal ────────────────────────────────────────
 		boolean entryNow = determineEntry(phase, touchingMA5, touchingMA20, pullbackDepth, ma5, ma20, current);
 		double pullbackTarget = calcPullbackTarget(ma5, ma20, pullbackDepth);
-		// ── 10. Build result ─────────────────────────────────────────────────
 		return buildResult(phase, pullbackDepth, pullbackTarget, entryNow, current, ma5, ma20, recentHigh, recentLow,
 				momentum, touchingMA5, touchingMA20, higherHighs, higherLows, volatility, distToMA5Pct, distToMA20Pct);
 	}
 
-	// ── Phase classifier ───────────────────────────────────────────────────
 	private Phase classifyPhase(double current, double recentHigh, double recentLow, double pullbackDepth,
 			Momentum momentum, double ma5, double ma20, boolean higherHighs, boolean higherLows, double volatility) {
-		// REVERSAL: price broke below MA20 or deep drop > 8%
 		if (current < ma20 || pullbackDepth > PULLBACK_MAX_PCT) {
 			return Phase.REVERSAL;
 		}
-		// PULLBACK: price dropped from recent high 1–8%, momentum turning down,
-		// but still above MA20
 		if (pullbackDepth >= PULLBACK_MIN_PCT && pullbackDepth <= PULLBACK_MAX_PCT && current >= ma20
 				&& momentum != Momentum.STRONGLY_UP) {
 			return Phase.PULLBACK;
 		}
-		// CONSOLIDATING: price moving sideways (low volatility, small range)
 		double rangeWidth = recentHigh > 0 && recentLow > 0 ? (recentHigh - recentLow) / recentHigh * 100 : 0;
 		if (volatility < 0.5 && rangeWidth < CONSOLIDATION_BAND * 3) {
 			return Phase.CONSOLIDATING;
 		}
-		// ADVANCING: price making new highs, momentum up, above both MAs
 		if (momentum == Momentum.STRONGLY_UP && higherHighs && current > ma5 && current > ma20) {
 			return Phase.ADVANCING;
 		}
 		return Phase.CONSOLIDATING;
 	}
 
-	// ── Entry decision ─────────────────────────────────────────────────────
 	private boolean determineEntry(Phase phase, boolean touchingMA5, boolean touchingMA20, double pullbackDepth,
 			double ma5, double ma20, double current) {
 		return switch (phase) {
-		// Best entry: pullback touching MA5 (ideal) or MA20 (deep)
 		case PULLBACK -> touchingMA5 || touchingMA20;
-		// Enter only if price just reclaimed MA5 from consolidation
 		case CONSOLIDATING -> current > ma5 && current < ma5 * 1.005;
-		// Advancing: late entry, only if < 2% above MA5
 		case ADVANCING -> (current - ma5) / ma5 * 100 < 2.0;
-		// Reversal: never enter
 		case REVERSAL -> false;
 		};
 	}
 
-	// ── Pullback target price ──────────────────────────────────────────────
 	private double calcPullbackTarget(double ma5, double ma20, double pullbackDepth) {
-		// If pullback < 3% → target MA5 retest
-		// If pullback >= 3% → target halfway between MA5 and MA20
 		if (pullbackDepth < 3.0)
 			return round4(ma5);
 		return round4((ma5 + ma20) / 2.0);
 	}
 
-	// ── Build final result ─────────────────────────────────────────────────
 	private PullbackResult buildResult(Phase phase, double pullbackDepth, double pullbackTarget, boolean entryNow,
 			double current, double ma5, double ma20, double recentHigh, double recentLow, Momentum momentum,
 			boolean touchingMA5, boolean touchingMA20, boolean higherHighs, boolean higherLows, double volatility,
@@ -167,7 +143,6 @@ public class PullbackService {
 				pullbackTarget, entryNow, advice, detail);
 	}
 
-	// ── Helpers ────────────────────────────────────────────────────────────
 	private double findRecentHigh(List<Double> prices, int lookback) {
 		return prices.subList(Math.max(0, prices.size() - lookback), prices.size()).stream()
 				.mapToDouble(Double::doubleValue).max().orElse(0);
@@ -182,7 +157,7 @@ public class PullbackService {
 		if (prices.size() < 3)
 			return Momentum.NEUTRAL;
 		int size = prices.size();
-		double c1 = prices.get(size - 1); // latest
+		double c1 = prices.get(size - 1);
 		double c2 = prices.get(size - 2);
 		double c3 = prices.get(size - 3);
 		boolean last2up = c1 > c2;
@@ -200,7 +175,6 @@ public class PullbackService {
 		return Momentum.NEUTRAL;
 	}
 
-	// Higher highs: each 5-candle peak is higher than the previous
 	private boolean isHigherHighs(List<Double> prices) {
 		if (prices.size() < 10)
 			return false;
@@ -210,7 +184,6 @@ public class PullbackService {
 		return high1 > high2;
 	}
 
-	// Higher lows: each 5-candle trough is higher than the previous
 	private boolean isHigherLows(List<Double> prices) {
 		if (prices.size() < 10)
 			return false;
@@ -239,35 +212,5 @@ public class PullbackService {
 
 	private double round2(double v) {
 		return Math.round(v * 100.0) / 100.0;
-	}
-
-	// ── Enums ──────────────────────────────────────────────────────────────
-	enum Phase {
-		ADVANCING("Advancing"), PULLBACK("Pullback"), CONSOLIDATING("Consolidating"), REVERSAL("Reversal");
-
-		private final String label;
-
-		Phase(String label) {
-			this.label = label;
-		}
-
-		public String label() {
-			return label;
-		}
-	}
-
-	enum Momentum {
-		STRONGLY_UP("⬆️⬆️ Strongly Up"), TURNING_UP("↗️ Turning Up"), NEUTRAL("➡️ Neutral"),
-		TURNING_DOWN("↘️ Turning Down"), STRONGLY_DOWN("⬇️⬇️ Strongly Down");
-
-		private final String label;
-
-		Momentum(String label) {
-			this.label = label;
-		}
-
-		public String label() {
-			return label;
-		}
 	}
 }

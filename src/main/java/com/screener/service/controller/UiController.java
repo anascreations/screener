@@ -40,7 +40,6 @@ public class UiController {
 		return INDEX;
 	}
 
-	// ── Scanner ───────────────────────────────────────────────────────────────
 	@PostMapping("scan/single")
 	public String scanSingle(@RequestParam String market, @RequestParam String code, Model model) {
 		model.addAttribute("activeTab", "scan-single");
@@ -88,7 +87,6 @@ public class UiController {
 		return INDEX;
 	}
 
-	// ── Watchlist ─────────────────────────────────────────────────────────────
 	@PostMapping("watchlist/tomorrow")
 	public String watchlistTomorrow(@RequestParam String market, @RequestParam(required = false) Double minPrice,
 			@RequestParam(required = false) Double maxPrice, @RequestParam(defaultValue = "65") double minScore,
@@ -108,7 +106,6 @@ public class UiController {
 		return INDEX;
 	}
 
-	// ── Results ───────────────────────────────────────────────────────────────
 	@PostMapping("result/today")
 	public String resultToday(@RequestParam String market, Model model) {
 		model.addAttribute("activeTab", "result-today");
@@ -140,12 +137,10 @@ public class UiController {
 		return INDEX;
 	}
 
-	// ── Calculators ───────────────────────────────────────────────────────────
 	@PostMapping("ma/calculation")
 	public String maCalculation(@ModelAttribute @Valid MaCalculationRequest request, BindingResult binding,
 			Model model) {
 		model.addAttribute("activeTab", "ma-calc");
-		// ✅ Repopulate ALL fields so form retains values after submit
 		model.addAttribute("market", request.getMarket());
 		model.addAttribute("timeframe", request.getTimeframe());
 		model.addAttribute("marketPrice", request.getMarketPrice());
@@ -239,7 +234,6 @@ public class UiController {
 		return INDEX;
 	}
 
-	// ── Helpers ───────────────────────────────────────────────────────────────
 	private Map<String, Object> parseErrorBody(WebClientResponseException e) {
 		log.warn("[UI] Upstream {} — {}", e.getStatusCode().value(), e.getResponseBodyAsString());
 		try {

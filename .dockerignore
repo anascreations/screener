@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Maven build output — Stage 1 rebuilds this inside Docker
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local data (H2 files)
+data/
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+render.yaml

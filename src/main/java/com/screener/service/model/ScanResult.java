@@ -57,86 +57,53 @@ public class ScanResult {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	// ── Market identity ────────────────────────────────────────────────────────
 	@Enumerated(EnumType.STRING)
 	@Column(length = 3, nullable = false)
 	private Market market;
 	private String stockCode;
 	private String stockName;
 	private String exchange;
-	// ── Timing ─────────────────────────────────────────────────────────────────
 	private LocalDateTime scannedAt;
 	private LocalDate scanDate;
 	private LocalDate tradeDate;
-	// ── Decision & quality ─────────────────────────────────────────────────────
-	private String decision; // BUY | WATCH | IGNORE
-	/** SCALP = same day / next morning. SWING = 2-4 days. BOTH = run both plans. */
+	private String decision;
 	@Column(length = 10)
 	private String tradeType;
-	/**
-	 * A = full confluence, B = good, C = marginal. Execute with A=full size, B=70%,
-	 * C=50%.
-	 */
 	@Column(length = 3)
 	private String confidence;
 	private double score;
-	// ── OHLCV ──────────────────────────────────────────────────────────────────
 	private double closePrice;
 	private double openPrice;
 	private double highPrice;
 	private double lowPrice;
 	private long volume;
 	private double volumeRatio;
-	/** Daily traded value (close × volume). Liquidity indicator. */
 	private double volumeValue;
-	// ── 52-week range ──────────────────────────────────────────────────────────
 	private double weekHigh52;
 	private double weekLow52;
-	// ── SCALP entry plan (same-day / next morning) ─────────────────────────────
-	/**
-	 * Scalp entry — near current price. Enter at open or on first 15min pullback.
-	 */
 	private double scalpEntry;
-	/** Scalp SL — tight, just below today's low. */
 	private double scalpSL;
-	/** Scalp TP1 — 1:1 R:R. Take all/most at this level. */
 	private double scalpTP1;
-	/** Scalp R:R ratio (TP2 is 1.5× risk if left to run). */
 	private double scalpRR;
-	// ── SWING entry plan (2-4 day hold) ───────────────────────────────────────
-	/** Ideal limit entry — set this as a limit order. */
 	private double entryPrice;
-	/** Skip the trade if stock opens above this. */
 	private double entryMax;
 	private double stopLoss;
-	/** TP1 — take 40% of position. Move SL to breakeven after. */
 	private double targetTP1;
-	/** TP2 — take 40% of position. */
 	private double targetTP2;
-	/** TP3 — final 20%, trail stop or target. */
 	private double targetTP3;
 	private double riskReward;
-	// ── Indicators ─────────────────────────────────────────────────────────────
 	private double rsi;
 	private double macdHistogram;
-	/**
-	 * How deep the histogram went negative before crossing. Deeper = stronger
-	 * reversal energy.
-	 */
 	private double macdDepth;
 	private double ema9;
 	private double ema21;
 	private double ema50;
-	/** EMA200 or proxy EMA if < 200 bars available. Major structural trend. */
 	private double ema200;
 	private double adx;
 	private double atr;
-	/** ATR / close * 100. Minimum 1.5% for scalp, 0.8% for swing. */
 	private double atrPct;
-	/** Candle pattern detected at today's bar. */
 	@Column(length = 40)
 	private String candlePattern;
-	// ── Reasons & warnings ─────────────────────────────────────────────────────
 	@Column(length = 2000)
 	private String reasons;
 	@Column(length = 800)

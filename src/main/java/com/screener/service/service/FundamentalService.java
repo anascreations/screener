@@ -22,45 +22,6 @@ import com.screener.service.util.ThreadUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * ═══════════════════════════════════════════════════════════════════════════
- * FUNDAMENTAL ANALYSIS SERVICE
- *
- * Fetches key financial metrics from Yahoo Finance quoteSummary API and
- * produces a BUY / WATCH / SKIP recommendation with scored reasons.
- *
- * API used: https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}
- * modules: financialData, defaultKeyStatistics, summaryDetail, earningsTrend
- *
- * Scoring philosophy — what actually predicts price going up:
- * ──────────────────────────────────────────────────────────────
- *
- * GREEN FLAGS (add score): Revenue growing QoQ / YoY — top-line momentum Net
- * profit margin > 10% — pricing power EPS growing — earnings per share rising =
- * value P/E ratio reasonable (< 25) — not overpriced ROE > 12% — management
- * using capital well Debt/Equity < 1.0 — not drowning in debt Current ratio >
- * 1.5 — can pay short-term bills Free cash flow positive — real cash coming in,
- * not accounting tricks Dividend yield supported by FCF — dividend is safe, not
- * a trap Insider buying / low short interest — smart money aligned
- *
- * RED FLAGS (subtract score): Revenue growing but profit shrinking — costs out
- * of control (screenshot case!) Net profit margin falling — pricing power
- * erosion EPS declining — each share worth less each quarter High P/E (>40)
- * with no growth — overpriced trap Negative free cash flow — paying dividends
- * from debt Dividend payout ratio > 100% — unsustainable dividend (danger!) D/E
- * > 2.0 — heavily leveraged, rate-sensitive Current ratio < 1.0 — liquidity
- * risk Declining gross margin — losing competitive advantage
- *
- * SCREENING THIS SCREENSHOT: Revenue +3.11% ✅ growing PBT -11.39% ❌ costs
- * rising faster than revenue Net profit -4.98% ❌ shrinking NPM 28.38% ✅ healthy
- * margin BUT declining -7.85% ❌ EPS -4.49% ❌ shareholders getting less per
- * share DPS +140% ⚠️ RED FLAG — dividend raised while profits fall =
- * unsustainable BVPS +8.41% ✅ book value growing (assets building)
- *
- * Verdict: SKIP for swing/scalp — profit quality deteriorating. May be value
- * play long-term but not for short-term momentum.
- * ═══════════════════════════════════════════════════════════════════════════
- */
 @Service
 @Slf4j
 public class FundamentalService {
@@ -81,13 +42,6 @@ public class FundamentalService {
 		this.sessionMap = Map.of(Market.MY, (SessionProvider) myExchange, Market.US, (SessionProvider) usExchange);
 	}
 
-	/**
-	 * Full fundamental analysis for a stock.
-	 * 
-	 * @param market MY or US
-	 * @param code   bare code (e.g. "5243" for MY, "AAPL" for US)
-	 * @return FundamentalResult with recommendation + scored reasons
-	 */
 	public FundamentalResult analyze(Market market, String code) {
 		String ticker = market == Market.MY ? code.trim().toUpperCase() + ".KL" : code.trim().toUpperCase();
 		log.info("[FUND] Analyzing fundamentals: {}", ticker);
@@ -123,35 +77,27 @@ public class FundamentalService {
 		List<String> red = new ArrayList<>();
 		List<String> neutral = new ArrayList<>();
 		Map<String, Object> metrics = new LinkedHashMap<>();
-		// ── Extract raw values ─────────────────────────────────────────────────
-		// ── Data freshness — when was this data last reported? ──────────────────
-		// mostRecentQuarter : Unix timestamp of the last filed quarterly report
-		// fiscalYearEnd : Unix timestamp of the last fiscal year end
-		// earningsDate : next expected earnings announcement (from calendar)
 		long mostRecentQuarter = raw(ks, "mostRecentQuarter") > 0 ? (long) raw(ks, "mostRecentQuarter") : 0L;
 		long fiscalYearEnd = raw(ks, "lastFiscalYearEnd") > 0 ? (long) raw(ks, "lastFiscalYearEnd") : 0L;
-		long nextEarningsTs = raw(sd, "earningsTimestamp") > 0 // earningsTimestamp not in summaryDetail
-				? (long) raw(sd, "earningsTimestamp")
-				: 0L;
-		// Compute data age in days
+		long nextEarningsTs = raw(sd, "earningsTimestamp") > 0 ? (long) raw(sd, "earningsTimestamp") : 0L;
 		long nowEpoch = java.time.Instant.now().getEpochSecond();
 		long ageDays = mostRecentQuarter > 0 ? (nowEpoch - mostRecentQuarter) / 86400 : -1;
-		double revenueGrowthQoQ = pct(fin, "revenueGrowth"); // QoQ
-		double earningsGrowthQoQ = pct(fin, "earningsGrowth"); // QoQ
+		double revenueGrowthQoQ = pct(fin, "revenueGrowth");
+		double earningsGrowthQoQ = pct(fin, "earningsGrowth");
 		double netProfitMargin = pct(fin, "profitMargins");
 		double grossMargin = pct(fin, "grossMargins");
 		double operatingMargin = pct(fin, "operatingMargins");
 		double roe = pct(fin, "returnOnEquity");
 		double roa = pct(fin, "returnOnAssets");
-		double debtToEquity = raw(fin, "debtToEquity") / 100.0; // Yahoo gives as %, normalise
+		double debtToEquity = raw(fin, "debtToEquity") / 100.0;
 		double currentRatio = raw(fin, "currentRatio");
-		double freeCashflow = raw(fin, "freeCashflow"); // absolute
+		double freeCashflow = raw(fin, "freeCashflow");
 		double totalRevenue = raw(fin, "totalRevenue");
 		double totalCash = raw(fin, "totalCash");
 		double trailingPE = raw(ks, "trailingEps") != 0
 				? raw(sd, "marketCap") / (raw(ks, "trailingEps") * raw(ks, "sharesOutstanding"))
 				: raw(sd, "trailingPE");
-		trailingPE = raw(sd, "trailingPE"); // use summary's PE
+		trailingPE = raw(sd, "trailingPE");
 		double forwardPE = raw(sd, "forwardPE");
 		double priceToBook = raw(ks, "priceToBook");
 		double dividendYield = pct(sd, "dividendYield");
@@ -161,22 +107,17 @@ public class FundamentalService {
 		double forwardEps = raw(ks, "forwardEps");
 		double revenuePerShare = raw(fin, "revenuePerShare");
 		double shortRatio = raw(ks, "shortRatio");
-		// YoY revenue trend from quarterly income statements
 		double revenueGrowthYoY = computeYoYRevenue(incomeQ);
-		// EPS growth trend (forward vs trailing)
 		double epsGrowth = (eps != 0 && forwardEps != 0) ? (forwardEps - eps) / Math.abs(eps) : 0;
-		// Dividend sustainability check
 		double fcfPerShare = (freeCashflow != 0 && totalRevenue != 0) ? freeCashflow / totalRevenue * revenuePerShare
 				: 0;
 		double dividendPerShare = raw(sd, "dividendRate");
 		boolean dividendUnsustainable = dividendPerShare > 0 && freeCashflow < 0;
-		boolean payoutDangerous = payoutRatio > 1.0; // paying out more than it earns
-		// EPS Trend from earningsTrend
+		boolean payoutDangerous = payoutRatio > 1.0;
 		double epsGrowthCurrentQ = earnTrendValue(earnTrend, "0q", "growth");
 		double epsGrowthNextQ = earnTrendValue(earnTrend, "+1q", "growth");
 		double epsGrowthCurrentY = earnTrendValue(earnTrend, "0y", "growth");
 		double epsGrowthNextY = earnTrendValue(earnTrend, "+1y", "growth");
-		// Build metrics map for response
 		metrics.put("revenue", fmt(totalRevenue));
 		metrics.put("revenueGrowthQoQ", fmtPct(revenueGrowthQoQ));
 		metrics.put("revenueGrowthYoY", fmtPct(revenueGrowthYoY));
@@ -204,7 +145,6 @@ public class FundamentalService {
 		metrics.put("payoutRatio", fmtPct(payoutRatio));
 		metrics.put("beta", f2(beta));
 		metrics.put("shortRatio", f2(shortRatio));
-		// Data freshness fields
 		metrics.put("reportDate",
 				mostRecentQuarter > 0
 						? java.time.Instant.ofEpochSecond(mostRecentQuarter)
@@ -233,7 +173,6 @@ public class FundamentalService {
 			totalScore += 3;
 			green.add("✅ Data fresh — latest quarterly report filed " + ageDays + " days ago");
 		}
-		// Revenue growth
 		if (revenueGrowthQoQ >= 0.20) {
 			totalScore += 18;
 			green.add("🚀 Revenue surging +" + fmtPct(revenueGrowthQoQ) + " QoQ — strong top-line growth");
@@ -253,14 +192,11 @@ public class FundamentalService {
 			totalScore -= 20;
 			red.add("🚨 Revenue collapsing " + fmtPct(revenueGrowthQoQ) + " QoQ — serious concern");
 		}
-		// CRITICAL: Revenue growing but profits falling = cost problem (this
-		// screenshot)
 		if (revenueGrowthQoQ > 0.02 && earningsGrowthQoQ < -0.05) {
 			totalScore -= 15;
 			red.add("🚨 MARGIN SQUEEZE: Revenue +" + fmtPct(revenueGrowthQoQ) + " but earnings "
 					+ fmtPct(earningsGrowthQoQ) + " — costs rising faster than revenue. Momentum traders avoid.");
 		}
-		// Profit margin absolute level
 		if (netProfitMargin >= 0.20) {
 			totalScore += 15;
 			green.add("✅ Net margin " + fmtPct(netProfitMargin) + " — excellent pricing power");
@@ -277,7 +213,6 @@ public class FundamentalService {
 			totalScore -= 20;
 			red.add("🚨 Negative net margin " + fmtPct(netProfitMargin) + " — company losing money");
 		}
-		// Earnings growth
 		if (earningsGrowthQoQ >= 0.20) {
 			totalScore += 18;
 			green.add("🚀 Earnings growth +" + fmtPct(earningsGrowthQoQ) + " QoQ — profit accelerating");
@@ -305,7 +240,6 @@ public class FundamentalService {
 			totalScore -= 15;
 			red.add("🚨 Negative EPS " + f4(eps) + " — company not profitable per share");
 		}
-		// EPS trend (analyst estimates)
 		if (epsGrowthCurrentQ > 0.10) {
 			totalScore += 10;
 			green.add("📊 Analysts expect EPS +" + fmtPct(epsGrowthCurrentQ) + " this quarter");
@@ -342,7 +276,6 @@ public class FundamentalService {
 			totalScore -= 15;
 			red.add("🚨 Negative ROE " + fmtPct(roe) + " — equity being destroyed");
 		}
-		// Debt/Equity
 		if (debtToEquity <= 0.3) {
 			totalScore += 10;
 			green.add("✅ Debt/Equity " + f2(debtToEquity) + " — low debt, financially solid");
@@ -359,7 +292,6 @@ public class FundamentalService {
 			totalScore -= 20;
 			red.add("🚨 Debt/Equity " + f2(debtToEquity) + " — dangerously leveraged");
 		}
-		// Current ratio (liquidity)
 		if (currentRatio >= 2.0) {
 			totalScore += 10;
 			green.add("✅ Current ratio " + f2(currentRatio) + " — strong liquidity");
@@ -373,7 +305,6 @@ public class FundamentalService {
 			totalScore -= 15;
 			red.add("🚨 Current ratio " + f2(currentRatio) + " — liquidity risk! Cannot cover short-term debts");
 		}
-		// Free Cash Flow — the gold standard
 		if (freeCashflow > 0 && freeCashflow > totalRevenue * 0.10) {
 			totalScore += 15;
 			green.add("✅ Strong Free Cash Flow " + fmt(freeCashflow) + " (>" + "10% of revenue) — real cash business");
@@ -405,7 +336,6 @@ public class FundamentalService {
 			totalScore -= 15;
 			red.add("🚨 Negative P/E — company is loss-making");
 		}
-		// Forward P/E vs trailing (expectations)
 		if (forwardPE > 0 && trailingPE > 0 && forwardPE < trailingPE * 0.85) {
 			totalScore += 8;
 			green.add("✅ Forward P/E " + f2(forwardPE) + " < trailing " + f2(trailingPE)
@@ -414,7 +344,6 @@ public class FundamentalService {
 			totalScore -= 8;
 			red.add("Forward P/E " + f2(forwardPE) + " > trailing — earnings expected to fall");
 		}
-		// Price to Book
 		if (priceToBook > 0) {
 			if (priceToBook < 1.0) {
 				totalScore += 8;
@@ -459,7 +388,6 @@ public class FundamentalService {
 				neutral.add("Beta " + f2(beta) + " — low volatility, defensive stock");
 			}
 		}
-		// Short interest (high short = institutions betting against it)
 		if (shortRatio > 10) {
 			totalScore -= 10;
 			red.add("⚠ Short ratio " + f2(shortRatio) + " — high short interest, institutions bearish");
@@ -472,7 +400,6 @@ public class FundamentalService {
 		}
 		String verdict;
 		String verdictDetail;
-		// Count critical red flags
 		long criticalReds = red.stream().filter(s -> s.contains("🚨")).count();
 		long reds = red.size();
 		long greens = green.size();
@@ -497,7 +424,6 @@ public class FundamentalService {
 			verdictDetail = "Weak fundamentals. Even if a MACD cross appears, the underlying business "
 					+ "is not generating value. Skip.";
 		}
-		// Trading recommendation aligned with trade type
 		String tradingAdvice = buildTradingAdvice(verdict, totalScore, criticalReds, reds, greens, revenueGrowthQoQ,
 				earningsGrowthQoQ, netProfitMargin, eps, freeCashflow);
 		log.info("[FUND] {} → {} (score={:.1f}, greens={}, reds={}, critical={})", ticker, verdict, totalScore, greens,
@@ -564,7 +490,6 @@ public class FundamentalService {
 		}
 	}
 
-	/** Extract EPS growth from earningsTrend for a specific period */
 	private double earnTrendValue(JsonNode earnTrend, String period, String field) {
 		try {
 			JsonNode trends = earnTrend.path("trend");
