@@ -6,4 +6,4 @@
 /.temp*
 /.class
 /.log
-/hs_err_pid25576.log
+/hs*.log
