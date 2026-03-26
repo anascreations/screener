@@ -106,8 +106,8 @@ logging:
   file:
     name: ${LOG_PATH:/app/logs}/screener-service.log
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file:    "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
+    file:    "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n"
   logback:
     rollingpolicy:
       max-file-size: 100MB
