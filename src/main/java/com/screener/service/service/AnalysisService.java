@@ -32,22 +32,30 @@ public class AnalysisService {
 	private double minScore;
 	@Value("${screener.min-volume-ratio:1.3}")
 	private double minVolumeRatio;
+	// ── Hard gates ───────────────────────────────────────────────────
 	private static final double RSI_HARD_MAX = 75.0;
 	private static final double BB_PCT_HARD_MAX = 0.90;
-	private static final double MIN_TP1_RR = 1.2;
-	private static final double MIN_TP2_RR = 2.0;
-	private static final double MIN_SCORE_FOR_BUY = 108.0;
+	private static final double MIN_ATR_PCT = 0.8;
+	// ── Trade quality gates ──────────────────────────────────────────
+	private static final double MIN_TP1_RR = 1.5; // raised from 1.2
+	private static final double MIN_TP2_RR = 2.5; // raised from 2.0
+	private static final double MIN_SCORE_FOR_BUY = 118.0; // raised from 108
+	private static final double MIN_VOL_FOR_BUY = 1.5; // raised above minVolumeRatio
 	private static final double MIN_MACD_DEPTH = 0.003;
+	// ── Liquidity gates ──────────────────────────────────────────────
 	private static final double MY_MIN_VOL_VALUE = 30_000.0;
 	private static final double US_MIN_VOL_VALUE = 300_000.0;
-	private static final double MIN_ATR_PCT = 0.8;
+	// ── Confidence thresholds ─────────────────────────────────────────
 	private static final double CONF_A_MIN = 145.0;
 	private static final double CONF_B_MIN = 120.0;
+	// ── Scalp classification ─────────────────────────────────────────
 	private static final double SCALP_ADX_MIN = 28.0;
 	private static final double SCALP_VOL_MIN = 2.5;
 	private static final double SCALP_ATR_PCT = 1.5;
 	private static final double SCALP_RSI_MIN = 42.0;
 	private static final double SCALP_RSI_MAX = 67.0;
+	// ── 52-week danger tiers ─────────────────────────────────────────
+	private static final double YEAR_HIGH_HARD_BLOCK = 0.92; // top 8% = hard block (-40)
 	private static final int MAX_RETRIES = 3;
 
 	public AnalysisService(ExchangeMyService myExchange, ExchangeUsService usExchange,
@@ -61,6 +69,9 @@ public class AnalysisService {
 		this.sessionMap = Map.of(Market.MY, (SessionProvider) myExchange, Market.US, (SessionProvider) usExchange);
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// MAIN SCAN
+	// ══════════════════════════════════════════════════════════════════
 	public Optional<ScanResult> scan(Market market, String code) {
 		log.info("──────────────────────────────────────────────────");
 		String ticker = market == Market.MY ? code.trim().toUpperCase() + ".KL" : code.trim().toUpperCase();
@@ -102,8 +113,9 @@ public class AnalysisService {
 		double ema200 = ind.get("ema200");
 		double depth = ind.get("macdDepth");
 		double minVol = market == Market.MY ? MY_MIN_VOL_VALUE : US_MIN_VOL_VALUE;
+		// ── Hard pre-filters (fast exit before full scoring) ──────────
 		if (rsi >= RSI_HARD_MAX) {
-			log.info("[{}] ⛔ BLOCK — RSI {:.1f} overbought (max {})", code, rsi, RSI_HARD_MAX);
+			log.info("[{}] ⛔ BLOCK — RSI {} overbought (max {})", code, f1(rsi), RSI_HARD_MAX);
 			return Optional.of(buildTransient(market, code, today, ind, "RSI OVERBOUGHT " + f1(rsi)));
 		}
 		if (bbPct >= BB_PCT_HARD_MAX) {
@@ -122,7 +134,8 @@ public class AnalysisService {
 		int ema200Bars = ind.get("ema200Bars").intValue();
 		boolean isEma200Real = ema200Bars >= 150;
 		boolean aboveEma200 = today.close() > ema200;
-		ScoringResult scoring = evaluate(market, today, yesterday, twoDaysAgo, ind, indexTrend, aboveEma200,
+		// ── Full scoring ──────────────────────────────────────────────
+		ScoringResult scoring = evaluate(market, bars, today, yesterday, twoDaysAgo, ind, indexTrend, aboveEma200,
 				isEma200Real);
 		logScoring(code, scoring);
 		String decision = determineDecision(scoring.score(), volRat, rsi, bbPct, macdCross, indexTrend, aboveEma200,
@@ -186,6 +199,9 @@ public class AnalysisService {
 		return Optional.of(result);
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// MACD CROSS EVALUATION
+	// ══════════════════════════════════════════════════════════════════
 	private MacdCrossState evaluateMacdCross(String code, Map<String, Double> ind) {
 		double curr = ind.get("macdHist");
 		double prev = ind.get("macdHistPrev");
@@ -208,8 +224,12 @@ public class AnalysisService {
 		FRESH, CONFIRMED, NONE
 	}
 
-	private ScoringResult evaluate(Market market, DailyBar today, DailyBar yesterday, DailyBar twoDaysAgo,
-			Map<String, Double> ind, IndexTrend indexTrend, boolean aboveEma200, boolean isEma200Real) {
+	// ══════════════════════════════════════════════════════════════════
+	// SCORING ENGINE (bars passed in for 5-bar higher-low check)
+	// ══════════════════════════════════════════════════════════════════
+	private ScoringResult evaluate(Market market, List<DailyBar> bars, DailyBar today, DailyBar yesterday,
+			DailyBar twoDaysAgo, Map<String, Double> ind, IndexTrend indexTrend, boolean aboveEma200,
+			boolean isEma200Real) {
 		double score = 0;
 		List<String> pos = new ArrayList<>();
 		List<String> neg = new ArrayList<>();
@@ -233,13 +253,13 @@ public class AnalysisService {
 		double bbPct = ind.get("bbPct");
 		double bbWidth = ind.get("bbWidth");
 		double bbUpper = ind.get("bbUpper");
-		double bbLower = ind.get("bbLower");
 		double bbMid = ind.get("bbMid");
 		double obvTrend = ind.get("obvTrend");
 		double candlePat = ind.get("candlePattern");
 		double yearPos52 = ind.get("yearPos52");
 		int ema200b = ind.get("ema200Bars").intValue();
 		double close = today.close();
+		// ── [1] Market index regime ────────────────────────────────────
 		switch (indexTrend) {
 		case UPTREND -> {
 			score += 20;
@@ -251,18 +271,20 @@ public class AnalysisService {
 			neg.add("📉 Market index DOWNTREND — macro headwind (-30). HIGH FAILURE RISK.");
 		}
 		}
+		// ── [2] EMA200 structural position ────────────────────────────
 		if (aboveEma200) {
 			score += 10;
-			String label = isEma200Real ? "EMA200" : ("EMA" + ema200b);
-			pos.add(String.format("✅ Price(%s) above %s(%s) — institutional uptrend", market.formatPrice(close), label,
+			String lbl = isEma200Real ? "EMA200" : ("EMA" + ema200b);
+			pos.add(String.format("✅ Price(%s) above %s(%s) — institutional uptrend", market.formatPrice(close), lbl,
 					market.formatPrice(ema200)));
 		} else {
 			double penalty = isEma200Real ? -20 : -10;
 			score += penalty;
-			String label = isEma200Real ? "EMA200" : ("EMA" + ema200b);
+			String lbl = isEma200Real ? "EMA200" : ("EMA" + ema200b);
 			neg.add(String.format("❌ Price(%s) BELOW %s(%s) — structural downtrend (%.0f)", market.formatPrice(close),
-					label, market.formatPrice(ema200), penalty));
+					lbl, market.formatPrice(ema200), penalty));
 		}
+		// ── [3] MACD cross quality ─────────────────────────────────────
 		if (macdPrev <= 0.0 && macdHist > 0.0) {
 			score += 30;
 			pos.add(String.format("🔥 MACD FRESH GOLDEN CROSS! hist=%.4f (prev=%.4f)", macdHist, macdPrev));
@@ -285,7 +307,9 @@ public class AnalysisService {
 			score -= 10;
 			neg.add(String.format("MACD negative declining %.4f", macdHist));
 		}
-		if (macdPrev <= 0.0 && macdHist > 0.0 || macdPrev2 <= 0.0 && macdPrev > 0.0) {
+		// ── [4] MACD depth quality ─────────────────────────────────────
+		boolean freshOrConfirmed = (macdPrev <= 0.0 && macdHist > 0.0) || (macdPrev2 <= 0.0 && macdPrev > 0.0);
+		if (freshOrConfirmed) {
 			if (macdDepth >= 0.05) {
 				score += 15;
 				pos.add(String.format("💎 Deep MACD valley %.4f — high reversal energy!", macdDepth));
@@ -295,11 +319,12 @@ public class AnalysisService {
 			} else if (macdDepth >= 0.008) {
 				score += 5;
 				pos.add(String.format("MACD depth %.4f — moderate", macdDepth));
-			} else if (macdDepth < 0.003) {
+			} else if (macdDepth < MIN_MACD_DEPTH) {
 				score -= 8;
 				neg.add(String.format("⚠ SHALLOW MACD depth %.4f — may be noise cross", macdDepth));
 			}
 		}
+		// ── [5] EMA stack alignment ────────────────────────────────────
 		if (ema9 > ema21 && ema21 > ema50 && aboveEma200) {
 			score += 25;
 			pos.add(String.format("EMA9(%s) > EMA21(%s) > EMA50(%s) > EMA%d — perfect uptrend stack!",
@@ -320,6 +345,20 @@ public class AnalysisService {
 			score -= 5;
 			neg.add("EMA not aligned");
 		}
+		// ── [6] EMA slope validation (NEW) — flat EMAs = false breakout
+		double ema9Prev = ind.getOrDefault("ema9Prev", ema9);
+		double ema21Prev = ind.getOrDefault("ema21Prev", ema21);
+		double ema9Slope = ema9 - ema9Prev;
+		double ema21Slope = ema21 - ema21Prev;
+		if (ema9Slope > 0 && ema21Slope > 0) {
+			score += 8;
+			pos.add(String.format("EMA9 & EMA21 both rising (+%.4f / +%.4f) — trend accelerating", ema9Slope,
+					ema21Slope));
+		} else if (ema9Slope <= 0) {
+			score -= 10;
+			neg.add(String.format("EMA9 slope flat/down (%.4f) — momentum not confirming EMA stack", ema9Slope));
+		}
+		// ── [7] Price above EMA21 ──────────────────────────────────────
 		if (close > ema21) {
 			score += 5;
 			pos.add(String.format("Price above EMA21(%s)", market.formatPrice(ema21)));
@@ -327,6 +366,7 @@ public class AnalysisService {
 			score -= 3;
 			neg.add(String.format("Price below EMA21(%s)", market.formatPrice(ema21)));
 		}
+		// ── [8] RSI zone ───────────────────────────────────────────────
 		if (rsi >= 50 && rsi <= 62) {
 			score += 15;
 			pos.add(String.format("RSI %.1f ideal zone (50-62)", rsi));
@@ -346,6 +386,7 @@ public class AnalysisService {
 			score -= 5;
 			neg.add(String.format("RSI %.1f weak zone", rsi));
 		}
+		// ── [9] RSI slope (divergence guard) ─────────────────────────
 		if (rsiSlope >= 1.5) {
 			score += 8;
 			pos.add(String.format("RSI rising fast +%.1f/bar — momentum building!", rsiSlope));
@@ -359,26 +400,39 @@ public class AnalysisService {
 			score -= 3;
 			neg.add(String.format("RSI slope negative %.1f/bar", rsiSlope));
 		}
+		// ── [10] Volume ratio ──────────────────────────────────────────
 		if (volRatio >= 3.0) {
 			score += 22;
-			pos.add(String.format("Volume %.1fx — SMART MONEY signal!", volRatio));
+			pos.add(String.format("Volume %.1f× — SMART MONEY signal!", volRatio));
 		} else if (volRatio >= 2.0) {
 			score += 16;
-			pos.add(String.format("Volume %.1fx — strong conviction", volRatio));
+			pos.add(String.format("Volume %.1f× — strong conviction", volRatio));
 		} else if (volRatio >= 1.5) {
 			score += 8;
-			pos.add(String.format("Volume %.1fx — above average", volRatio));
+			pos.add(String.format("Volume %.1f× — above average", volRatio));
 		} else if (volRatio >= 1.0) {
 			score += 1;
-			pos.add(String.format("Volume %.1fx — near average", volRatio));
+			pos.add(String.format("Volume %.1f× — near average", volRatio));
 		} else {
 			score -= 12;
-			neg.add(String.format("Volume %.1fx — low conviction", volRatio));
+			neg.add(String.format("Volume %.1f× — low conviction", volRatio));
 		}
+		// ── [11] OBV trend confirmation ───────────────────────────────
 		if (obvTrend > 0 && volRatio >= 1.5) {
 			score += 5;
 			pos.add("OBV rising — accumulation confirmed");
 		}
+		// ── [12] 3-day volume trend (NEW) — spike vs sustained ────────
+		double volTrend3d = ind.getOrDefault("volTrend3d", 0.0);
+		if (volTrend3d > 0 && volRatio >= 1.5) {
+			score += 8;
+			pos.add(String.format("3-day volume trend rising (%.0f) + ratio %.1f× — sustained accumulation", volTrend3d,
+					volRatio));
+		} else if (volTrend3d < 0 && volRatio >= 2.0) {
+			score -= 5;
+			neg.add(String.format("Volume spike but 3-day trend declining (%.0f) — may be distribution", volTrend3d));
+		}
+		// ── [13] Candle pattern ───────────────────────────────────────
 		switch ((int) Math.round(candlePat)) {
 		case 4 -> {
 			score += 18;
@@ -401,6 +455,7 @@ public class AnalysisService {
 			neg.add("🚩 BEARISH REVERSAL candle — shooting star/bear engulf (-12)");
 		}
 		}
+		// ── [14] Day range close position ─────────────────────────────
 		double range = today.high() - today.low();
 		if (range > 0) {
 			double closePos = (close - today.low()) / range;
@@ -421,6 +476,7 @@ public class AnalysisService {
 				neg.add(String.format("Bearish candle body %.0f%%", Math.abs(bodyPct) * 100));
 			}
 		}
+		// ── [15] Breakout & price structure ───────────────────────────
 		if (close > yesterday.high()) {
 			score += 15;
 			pos.add(String.format("BREAKOUT close(%s) > yesterday high(%s)", market.formatPrice(close),
@@ -434,6 +490,18 @@ public class AnalysisService {
 			score += 5;
 			pos.add("3 consecutive Higher Lows");
 		}
+		// ── [16] 5-bar consecutive higher lows (NEW) ──────────────────
+		if (bars.size() >= 5) {
+			DailyBar d4 = bars.get(bars.size() - 4);
+			DailyBar d5 = bars.get(bars.size() - 5);
+			boolean fiveBarHL = today.low() > yesterday.low() && yesterday.low() > twoDaysAgo.low()
+					&& twoDaysAgo.low() > d4.low() && d4.low() > d5.low();
+			if (fiveBarHL) {
+				score += 12;
+				pos.add("5 consecutive Higher Lows — strong structural uptrend (+12)");
+			}
+		}
+		// ── [17] 52-week range — 3-tier danger zone ───────────────────
 		if (yearPos52 <= 0.30) {
 			score += 12;
 			pos.add(String.format("💡 Lower %.0f%% of 52-week range — lots of upside room!", yearPos52 * 100));
@@ -441,14 +509,20 @@ public class AnalysisService {
 			score += 6;
 			pos.add(String.format("Lower half of 52-week range (%.0f%%) — good room", yearPos52 * 100));
 		} else if (yearPos52 <= 0.70) {
+			// neutral — no adjustment
 		} else if (yearPos52 <= 0.85) {
-			score -= 10;
-			neg.add(String.format("Upper %.0f%% of 52-week range — limited upside room", yearPos52 * 100));
-		} else {
+			score -= 12;
+			neg.add(String.format("Upper %.0f%% of 52-week range — limited upside room (-12)", yearPos52 * 100));
+		} else if (yearPos52 <= YEAR_HIGH_HARD_BLOCK) {
 			score -= 25;
-			neg.add(String.format("⚠ NEAR 52-WEEK HIGH (%.0f%%) — very little room, high reversal risk",
+			neg.add(String.format("⚠ NEAR 52-WEEK HIGH (%.0f%%) — very little room, high reversal risk (-25)",
+					yearPos52 * 100));
+		} else {
+			score -= 40;
+			neg.add(String.format("🚫 AT 52-WEEK HIGH (%.0f%%) — swing trade forbidden, reversal highly likely (-40)",
 					yearPos52 * 100));
 		}
+		// ── [18] Bollinger Band position ──────────────────────────────
 		if (bbPct > 0.90) {
 			score -= 25;
 			neg.add("Price near BB upper — OVERBOUGHT");
@@ -481,6 +555,7 @@ public class AnalysisService {
 			score += 3;
 			pos.add("Above BB midline");
 		}
+		// ── [19] ADX trend strength ────────────────────────────────────
 		if (adx > 35) {
 			score += 10;
 			pos.add(String.format("ADX %.1f — very strong trend", adx));
@@ -494,6 +569,7 @@ public class AnalysisService {
 			score -= 5;
 			neg.add(String.format("ADX %.1f — weak/ranging", adx));
 		}
+		// ── [20] Stochastic cross ──────────────────────────────────────
 		if (stochKP < stochDP && stochK > stochD && stochK < 80) {
 			score += 10;
 			pos.add(String.format("Stochastic FRESH bullish cross K(%.1f)>D(%.1f)", stochK, stochD));
@@ -510,8 +586,12 @@ public class AnalysisService {
 		return new ScoringResult(score, pos, neg);
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// DECISION ENGINE
+	// ══════════════════════════════════════════════════════════════════
 	private String determineDecision(double score, double volRatio, double rsi, double bbPct, MacdCrossState macdCross,
 			IndexTrend indexTrend, boolean aboveEma200, boolean isEma200Real, double macdDepth, double atrPct) {
+		// Hard IGNORE blocks
 		if (rsi >= RSI_HARD_MAX)
 			return "IGNORE";
 		if (bbPct >= BB_PCT_HARD_MAX)
@@ -520,22 +600,31 @@ public class AnalysisService {
 			return "IGNORE";
 		if (score < minScore)
 			return "IGNORE";
+		if (atrPct < MIN_ATR_PCT)
+			return "IGNORE"; // too illiquid to move
+		// Shallow cross = noise, demote to WATCH
+		if (macdCross != MacdCrossState.NONE && macdDepth < MIN_MACD_DEPTH)
+			return "WATCH";
+		// Structural / regime downgrades
 		if (!aboveEma200 && isEma200Real)
 			return "WATCH";
 		if (indexTrend == IndexTrend.DOWNTREND)
 			return "WATCH";
 		if (macdCross == MacdCrossState.NONE)
 			return "WATCH";
-		if (score >= MIN_SCORE_FOR_BUY && volRatio >= minVolumeRatio)
+		// BUY: raised thresholds + MACD depth required
+		if (score >= MIN_SCORE_FOR_BUY && volRatio >= MIN_VOL_FOR_BUY && macdDepth >= MIN_MACD_DEPTH)
 			return "BUY";
 		return "WATCH";
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// TRADE TYPE CLASSIFICATION
+	// ══════════════════════════════════════════════════════════════════
 	private String classifyTradeType(Map<String, Double> ind, DailyBar today, DailyBar yesterday,
 			MacdCrossState macdCross, double volRatio, double atrPct) {
 		double adx = ind.get("adx");
 		double rsi = ind.get("rsi");
-		double bbW = ind.get("bbWidth");
 		boolean scalpADX = adx >= SCALP_ADX_MIN;
 		boolean scalpVol = volRatio >= SCALP_VOL_MIN;
 		boolean scalpATR = atrPct >= SCALP_ATR_PCT;
@@ -551,6 +640,9 @@ public class AnalysisService {
 		return "SWING";
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// CONFIDENCE GRADE (A/B/C — more flags required for A)
+	// ══════════════════════════════════════════════════════════════════
 	private String gradeConfidence(double score, MacdCrossState macdCross, IndexTrend indexTrend, boolean aboveEma200,
 			double volRatio, double rsi, Map<String, Double> ind) {
 		double ema9 = ind.get("ema9");
@@ -562,34 +654,62 @@ public class AnalysisService {
 		boolean idealRsi = rsi >= 45 && rsi <= 65;
 		boolean freshCross = macdCross == MacdCrossState.FRESH;
 		boolean strongCandle = IndicatorService.isStrongPattern(ind.get("candlePattern"));
-		double depth = ind.get("macdDepth");
-		boolean deepCross = depth >= 0.02;
-		int aFlags = 0;
+		boolean deepCross = ind.get("macdDepth") >= 0.02;
+		// EMA slope confirmation
+		double ema9Prev = ind.getOrDefault("ema9Prev", ema9);
+		double ema21Prev = ind.getOrDefault("ema21Prev", ema21);
+		boolean emaAccel = (ema9 - ema9Prev) > 0 && (ema21 - ema21Prev) > 0;
+		// 3-day sustained volume
+		boolean sustainedVol = ind.getOrDefault("volTrend3d", 0.0) > 0 && volRatio >= 1.5;
+		int flags = 0;
 		if (uptrend)
-			aFlags++;
+			flags++;
 		if (allEmasAligned)
-			aFlags++;
+			flags++;
+		if (emaAccel)
+			flags++;
 		if (goodVolume)
-			aFlags++;
+			flags++;
+		if (sustainedVol)
+			flags++;
 		if (idealRsi)
-			aFlags++;
+			flags++;
 		if (freshCross)
-			aFlags++;
+			flags++;
 		if (strongCandle)
-			aFlags++;
+			flags++;
 		if (deepCross)
-			aFlags++;
-		if (score >= CONF_A_MIN && aFlags >= 6)
+			flags++;
+		if (score >= CONF_A_MIN && flags >= 7)
 			return "A";
-		if (score >= CONF_B_MIN && aFlags >= 4)
+		if (score >= CONF_B_MIN && flags >= 5)
 			return "B";
 		return "C";
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// MOMENTUM TIER (used by ScannerService for composite ranking)
+	// ══════════════════════════════════════════════════════════════════
+	public String classifyMomentumTier(ScanResult r) {
+		if (r.getScore() >= 145 && r.getVolumeRatio() >= 2.5 && "A".equals(r.getConfidence()))
+			return "S++ — ELITE";
+		if (r.getScore() >= 125 && r.getVolumeRatio() >= 2.0)
+			return "A — STRONG";
+		if (r.getScore() >= 108 && r.getVolumeRatio() >= 1.5)
+			return "B — GOOD";
+		return "C — MARGINAL";
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// ENTRY PLAN CALCULATION
+	// ══════════════════════════════════════════════════════════════════
 	private EntryPlan calculateEntry(Market market, DailyBar today, DailyBar yesterday, DailyBar twoDaysAgo,
 			Map<String, Double> ind, String tradeType) {
-		double close = today.close(), atr = ind.get("atr");
-		double ema9 = ind.get("ema9"), ema21 = ind.get("ema21");
+		double close = today.close();
+		double atr = ind.get("atr");
+		double ema9 = ind.get("ema9");
+		double ema21 = ind.get("ema21");
+		// Scalp plan
 		double scalpEntry = market.tick(close);
 		double scalpSL = market.tick(today.low() - atr * 0.3);
 		if (scalpSL >= scalpEntry)
@@ -598,6 +718,7 @@ public class AnalysisService {
 		double scalpTP1 = market.tick(scalpEntry + scalpRisk * 1.0);
 		double scalpTP2 = market.tick(scalpEntry + scalpRisk * 1.5);
 		double scalpRR = scalpRisk > 0 ? Math.round((scalpTP2 - scalpEntry) / scalpRisk * 10) / 10.0 : 0;
+		// Swing plan
 		double entryFib = today.high() - (today.high() - today.low()) * 0.382;
 		double emaSupport = (ema9 < close && ema9 > ema21) ? ema9 : (ema21 < close) ? ema21 : ema9;
 		double entryDip = close - (atr * 0.35);
@@ -619,7 +740,7 @@ public class AnalysisService {
 		double tp1Raw = ideal + risk * 1.5;
 		double tp1Cap = (bbU > tp1Raw) ? tp1Raw : (bbU > ideal + risk * MIN_TP1_RR) ? bbU * 0.985 : tp1Raw;
 		double tp1 = market.tick(tp1Cap);
-		double tp2 = market.tick(ideal + risk * 2.5);
+		double tp2 = market.tick(ideal + risk * 2.5); // raised from 2.0
 		double tp3 = market.tick(ideal + risk * 4.0);
 		if (tp1 <= ideal)
 			tp1 = market.tick(ideal + risk * MIN_TP1_RR);
@@ -640,6 +761,9 @@ public class AnalysisService {
 				tp2, tp3, rrr);
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// HELPERS
+	// ══════════════════════════════════════════════════════════════════
 	private LocalDate nextTradingDay(Market market, LocalDate from) {
 		if (market == Market.MY)
 			return calendarService.nextTradingDay(from);
@@ -665,23 +789,29 @@ public class AnalysisService {
 				.build();
 	}
 
+	// ── Logging ───────────────────────────────────────────────────────
 	private void logIndicators(Market market, String code, DailyBar today, Map<String, Double> ind) {
 		String label = market.fullTicker(code);
 		int ema200b = ind.get("ema200Bars").intValue();
+		double ema9 = ind.get("ema9");
+		double ema21 = ind.get("ema21");
+		double ema9s = ema9 - ind.getOrDefault("ema9Prev", ema9);
+		double ema21s = ema21 - ind.getOrDefault("ema21Prev", ema21);
 		log.info("[{}] EOD  : {}  O={} H={} L={} C={} | Candle: {}", label, today.date(),
 				market.formatPrice(today.open()), market.formatPrice(today.high()), market.formatPrice(today.low()),
 				market.formatPrice(today.close()), IndicatorService.patternName(ind.get("candlePattern")));
-		log.info("[{}] Vol  : {} ({}x avg) | Value: {} | 52wk: {}% of range", label, fVol(today.volume()),
-				f2(ind.get("volumeRatio")), market.formatPrice(ind.get("volumeValue")), f0(ind.get("yearPos52") * 100));
-		log.info("[{}] RSI  : {} {} | Slope: +{}/bar", label, f2(ind.get("rsi")), rsiLabel(ind.get("rsi")),
+		log.info("[{}] Vol  : {} ({}× avg) | Value: {} | 52wk: {}% | VolTrend3d: {}", label, fVol(today.volume()),
+				f2(ind.get("volumeRatio")), market.formatPrice(ind.get("volumeValue")), f0(ind.get("yearPos52") * 100),
+				f0(ind.getOrDefault("volTrend3d", 0.0)));
+		log.info("[{}] RSI  : {} {} | Slope: {}/bar", label, f2(ind.get("rsi")), rsiLabel(ind.get("rsi")),
 				f2(ind.get("rsiSlope")));
 		log.info("[{}] MACD : hist={} prev={} prev2={} | depth={} | {}", label, f4(ind.get("macdHist")),
 				f4(ind.get("macdHistPrev")), f4(ind.get("macdHistPrev2")), f4(ind.get("macdDepth")),
 				macdLabel(ind.get("macdHist"), ind.get("macdHistPrev"), ind.get("macdHistPrev2")));
-		log.info("[{}] EMA  : 9={} 21={} 50={} {}{}={} | {}", label, market.formatPrice(ind.get("ema9")),
-				market.formatPrice(ind.get("ema21")), market.formatPrice(ind.get("ema50")), ema200b < 200 ? "~" : "",
-				ema200b, market.formatPrice(ind.get("ema200")),
-				emaLabel(ind.get("ema9"), ind.get("ema21"), ind.get("ema50"), today.close(), ind.get("ema200")));
+		log.info("[{}] EMA  : 9={} 21={} 50={} {}{}={} | slopes 9={} 21={} | {}", label, market.formatPrice(ema9),
+				market.formatPrice(ema21), market.formatPrice(ind.get("ema50")), ema200b < 200 ? "~" : "", ema200b,
+				market.formatPrice(ind.get("ema200")), f4(ema9s), f4(ema21s),
+				emaLabel(ema9, ema21, ind.get("ema50"), today.close(), ind.get("ema200")));
 		log.info("[{}] BB   : U={} M={} L={} Pct={}% Width={}% | ADX={} | Stoch K={} D={}", label,
 				market.formatPrice(ind.get("bbUpper")), market.formatPrice(ind.get("bbMid")),
 				market.formatPrice(ind.get("bbLower")), f1(ind.get("bbPct") * 100), f2(ind.get("bbWidth")),
@@ -689,7 +819,7 @@ public class AnalysisService {
 	}
 
 	private void logScoring(String code, ScoringResult sc) {
-		log.info("[{}] SCORE: {} (v2 — BUY requires {}+)", code, f1(sc.score()), (int) MIN_SCORE_FOR_BUY);
+		log.info("[{}] SCORE: {} (BUY requires {}+)", code, f1(sc.score()), (int) MIN_SCORE_FOR_BUY);
 		if (!sc.positives().isEmpty())
 			log.info("[{}] ✅ {}", code, String.join(" | ", sc.positives()));
 		if (!sc.negatives().isEmpty())
@@ -711,7 +841,7 @@ public class AnalysisService {
 					market.fullTicker(r.getStockCode()), r.getStockName(), f1(r.getScore()), conf, confIcon);
 			log.info("║  Trade date: {} | Close: {} | Pattern: {}", tradeDate, market.formatPrice(r.getClosePrice()),
 					r.getCandlePattern());
-			log.info("║  Index: {} | 52wk position: {}%", indexService.getSummary(market),
+			log.info("║  Index: {} | 52wk: {}%", indexService.getSummary(market),
 					f0(r.getWeekHigh52() > r.getWeekLow52()
 							? (r.getClosePrice() - r.getWeekLow52()) / (r.getWeekHigh52() - r.getWeekLow52()) * 100
 							: 50));
@@ -735,11 +865,11 @@ public class AnalysisService {
 						f1((r.getTargetTP3() - entry) / risk));
 				log.info("║  [SWING] After TP1 hit → move SL to breakeven");
 			}
-			log.info("║  Vol: {}x | RSI: {} | ADX: {} | MACD depth: {}", f2(r.getVolumeRatio()), f1(r.getRsi()),
-					f1(r.getAdx()), f4(r.getMacdDepth()));
+			log.info("║  Vol: {}× | RSI: {} | ADX: {} | MACD depth: {} | Tier: {}", f2(r.getVolumeRatio()),
+					f1(r.getRsi()), f1(r.getAdx()), f4(r.getMacdDepth()), classifyMomentumTier(r));
 			log.info("╚══════════════════════════════════════════════════════════════╝");
 		} else if ("WATCH".equals(r.getDecision())) {
-			log.info("┌─ 👀 WATCH {} | Score:{} | {} | Vol:{}x", market.fullTicker(r.getStockCode()), f1(r.getScore()),
+			log.info("┌─ 👀 WATCH {} | Score:{} | {} | Vol:{}×", market.fullTicker(r.getStockCode()), f1(r.getScore()),
 					market.formatPrice(r.getClosePrice()), f2(r.getVolumeRatio()));
 			log.info("└─ {}", r.getWarnings());
 		} else {
@@ -748,6 +878,7 @@ public class AnalysisService {
 		log.info("");
 	}
 
+	// ── Label helpers ─────────────────────────────────────────────────
 	private String rsiLabel(double rsi) {
 		if (rsi >= RSI_HARD_MAX)
 			return "🚫 BLOCKED";
@@ -788,6 +919,7 @@ public class AnalysisService {
 		return "⚠ Mixed";
 	}
 
+	// ── Format helpers ────────────────────────────────────────────────
 	private String f0(double v) {
 		return String.format("%.0f", v);
 	}
@@ -812,6 +944,7 @@ public class AnalysisService {
 		return String.valueOf(v);
 	}
 
+	// ── Records ───────────────────────────────────────────────────────
 	private record ScoringResult(double score, List<String> positives, List<String> negatives) {
 	}
 

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.screener.service.enums.Market;
 import com.screener.service.model.ScanResult;
 import com.screener.service.model.StockCandidate;
+import com.screener.service.repository.ScanResultRepository;
 import com.screener.service.util.ThreadUtil;
 
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class ScannerService {
 	private final Map<Market, ExchangeService> exchangeMap;
 	private final AnalysisService analysisService;
 	private final TradingCalendarService calendarService;
+	private final ScanResultRepository scanRepo;
 	private static final int TIMEOUT_MIN = 60;
 	@Value("${screener.scan-parallelism:4}")
 	private int scanParallelism;
@@ -39,12 +41,16 @@ public class ScannerService {
 	private long delayBetweenMs;
 
 	public ScannerService(ExchangeMyService myExchange, ExchangeUsService usExchange, AnalysisService analysisService,
-			TradingCalendarService calendarService) {
+			TradingCalendarService calendarService, ScanResultRepository scanRepo) {
 		this.exchangeMap = Map.of(Market.MY, myExchange, Market.US, usExchange);
 		this.analysisService = analysisService;
 		this.calendarService = calendarService;
+		this.scanRepo = scanRepo;
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// RANGE SCAN
+	// ══════════════════════════════════════════════════════════════════
 	public List<ScanResult> scanByPriceRange(Market market, double minPrice, double maxPrice, double minScore,
 			String exchange) {
 		LocalDateTime start = LocalDateTime.now(market.zoneId);
@@ -55,6 +61,7 @@ public class ScannerService {
 					market.formatPrice(minPrice), market.formatPrice(maxPrice));
 			return Collections.emptyList();
 		}
+		LocalDate today = LocalDate.now(market.zoneId);
 		log.info("[{}] {} candidates → analysis ({} slots, {}ms gap per slot)", market, candidates.size(),
 				scanParallelism, delayBetweenMs);
 		Semaphore throttle = new Semaphore(scanParallelism);
@@ -63,12 +70,23 @@ public class ScannerService {
 		AtomicInteger buyCount = new AtomicInteger(0);
 		AtomicInteger watchCount = new AtomicInteger(0);
 		AtomicInteger ignCount = new AtomicInteger(0);
+		AtomicInteger skippedCache = new AtomicInteger(0);
 		AtomicInteger noDataCount = new AtomicInteger(0);
 		AtomicInteger failCount = new AtomicInteger(0);
 		AtomicInteger noMacd = new AtomicInteger(0);
 		int total = candidates.size();
 		List<Future<Optional<ScanResult>>> futures = new ArrayList<>();
 		for (StockCandidate c : candidates) {
+			// ── Fast skip: already IGNORE today (no re-analysis needed) ──
+			Optional<ScanResult> cached = scanRepo.findTopByMarketAndStockCodeOrderByScannedAtDesc(market, c.code());
+			if (cached.isPresent() && cached.get().getScanDate().equals(today)
+					&& "IGNORE".equals(cached.get().getDecision())) {
+				ignCount.incrementAndGet();
+				skippedCache.incrementAndGet();
+				done.incrementAndGet();
+				log.debug("[{}] ⏭ SKIP cached IGNORE", c.code());
+				continue;
+			}
 			futures.add(pool.submit(() -> {
 				try {
 					throttle.acquire();
@@ -102,9 +120,9 @@ public class ScannerService {
 					throttle.release();
 					int n = done.incrementAndGet();
 					if (n % 20 == 0 || n == total)
-						log.info("[{}] ⏳ {}/{} | BUY:{} WATCH:{} IGN:{} NO_MACD:{} NO_DATA:{} FAIL:{}", market, n,
-								total, buyCount.get(), watchCount.get(), ignCount.get(), noMacd.get(),
-								noDataCount.get(), failCount.get());
+						log.info("[{}] ⏳ {}/{} | BUY:{} WATCH:{} IGN:{} (cached:{}) NO_MACD:{} NO_DATA:{} FAIL:{}",
+								market, n, total, buyCount.get(), watchCount.get(), ignCount.get(), skippedCache.get(),
+								noMacd.get(), noDataCount.get(), failCount.get());
 				}
 			}));
 		}
@@ -114,6 +132,7 @@ public class ScannerService {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
+		// ── Collect all results ────────────────────────────────────────
 		List<ScanResult> all = futures.stream().map(f -> {
 			try {
 				return f.get();
@@ -121,29 +140,65 @@ public class ScannerService {
 				return Optional.<ScanResult>empty();
 			}
 		}).filter(Optional::isPresent).map(Optional::get)
-				.sorted(Comparator.comparingDouble(ScanResult::getScore).reversed()).collect(Collectors.toList());
-		logSummary(market, all, minPrice, maxPrice, minScore, noDataCount.get(), failCount.get(), start);
+				// Composite rank: score × 0.5 + volume × 15 + MACD depth × 500 + ATR bonus
+				.sorted(Comparator.comparingDouble((ScanResult r) -> compositeRank(r)).reversed())
+				.collect(Collectors.toList());
+		logSummary(market, all, minPrice, maxPrice, minScore, noDataCount.get(), failCount.get(), skippedCache.get(),
+				start);
+		// Return only BUY signals at or above minScore threshold
 		return all.stream().filter(r -> "BUY".equals(r.getDecision()) && r.getScore() >= minScore)
 				.collect(Collectors.toList());
 	}
 
+	// ══════════════════════════════════════════════════════════════════
+	// COMPOSITE RANK (replaces score-only sort)
+	// ══════════════════════════════════════════════════════════════════
+	/**
+	 * Weighted composite rank used to sort results. Weights: score (50%) + volume
+	 * (15pts/×) + MACD depth (500pts) + ATR bonus (10pts if ≥ 1.5%) This mirrors
+	 * how a professional would prioritise: high score with volume + momentum depth
+	 * beats a high score with weak volume.
+	 */
+	private double compositeRank(ScanResult r) {
+		double rank = r.getScore() * 0.5;
+		rank += r.getVolumeRatio() * 15.0;
+		rank += r.getMacdDepth() * 500.0;
+		if (r.getAtrPct() >= 1.5)
+			rank += 10.0; // volatility = moves fast enough to TP
+		// Confidence bonus
+		rank += switch (r.getConfidence() != null ? r.getConfidence() : "C") {
+		case "A" -> 20.0;
+		case "B" -> 10.0;
+		default -> 0.0;
+		};
+		return rank;
+	}
+
+	// ══════════════════════════════════════════════════════════════════
+	// LOGGING
+	// ══════════════════════════════════════════════════════════════════
 	private void logHeader(Market market, double min, double max, double minScore, String exch, LocalDateTime t) {
+		log.info("══════════════════════════════════════════════════════════════════");
 		log.info("  {} SCAN | {} — {} | {} | minScore:{}", market, market.formatPrice(min), market.formatPrice(max),
 				exch, (int) minScore);
 		log.info("  Throttle : {} concurrent slots, {}ms gap per slot", scanParallelism, delayBetweenMs);
-		log.info("  Require  : MACD Golden Cross (histogram crosses zero today or confirmed yesterday+accelerating)");
+		log.info("  Require  : MACD Golden Cross + score≥{} + vol≥1.5× + depth≥0.003", (int) 118);
+		log.info("  Ranking  : composite (score×0.5 + vol×15 + depth×500 + ATR + confidence)");
 		log.info("  Started  : {}", t);
+		log.info("══════════════════════════════════════════════════════════════════");
 	}
 
 	private void logSummary(Market market, List<ScanResult> results, double min, double max, double minScore,
-			int noData, int fail, LocalDateTime start) {
+			int noData, int fail, int cached, LocalDateTime start) {
 		long elapsed = java.time.Duration.between(start, LocalDateTime.now(market.zoneId)).getSeconds();
 		List<ScanResult> buys = results.stream().filter(r -> "BUY".equals(r.getDecision()) && r.getScore() >= minScore)
 				.toList();
 		List<ScanResult> watches = results.stream().filter(r -> "WATCH".equals(r.getDecision())).toList();
 		LocalDate tradeDate = nextTradingDayFrom(market, LocalDate.now(market.zoneId));
-		log.info("  {} DONE in {}s | Analyzed:{} NO_DATA:{} FAIL:{}", market, elapsed, results.size(), noData, fail);
-		int totalAttempted = results.size() + noData + fail;
+		log.info("══════════════════════════════════════════════════════════════════");
+		log.info("  {} DONE in {}s | Analyzed:{} CachedSkip:{} NO_DATA:{} FAIL:{}", market, elapsed, results.size(),
+				cached, noData, fail);
+		int totalAttempted = results.size() + noData + fail + cached;
 		if (noData > totalAttempted * 0.25) {
 			log.warn("  ⚠  HIGH NO_DATA RATE ({}/{}) — likely causes:", noData, totalAttempted);
 			log.warn("       · Yahoo rate limiting  →  reduce scan-parallelism to 2, increase delay to 1200ms");
@@ -155,22 +210,24 @@ public class ScannerService {
 			log.info("  No BUY signals — MACD golden cross is a rare event, this is normal.");
 			log.info("  WATCH list below = stocks that passed score/volume but need a fresh cross.");
 		} else {
-			log.info("  ✅ {} BUY SIGNAL(S) — Trade on {}", buys.size(), tradeDate);
+			log.info("  ✅ {} BUY SIGNAL(S) — Trade on {}  [ranked by composite score]", buys.size(), tradeDate);
 			for (int i = 0; i < buys.size(); i++) {
 				ScanResult r = buys.get(i);
-				log.info("  #{} {} ({}) | Score:{} | {} | Vol:{}x | SL:{} TP1:{} RR:1:{}", i + 1,
+				log.info("  #{} {} ({}) | Score:{} | Tier:{} | {} | Vol:{}× | Depth:{} | SL:{} TP1:{} RR:1:{}", i + 1,
 						market.fullTicker(r.getStockCode()), r.getStockName(), String.format("%.1f", r.getScore()),
-						market.formatPrice(r.getClosePrice()), String.format("%.2f", r.getVolumeRatio()),
+						analysisService.classifyMomentumTier(r), market.formatPrice(r.getClosePrice()),
+						String.format("%.2f", r.getVolumeRatio()), String.format("%.4f", r.getMacdDepth()),
 						market.formatPrice(r.getStopLoss()), market.formatPrice(r.getTargetTP1()), r.getRiskReward());
 			}
 		}
 		if (!watches.isEmpty()) {
 			log.info("  👀 WATCH ({}) — score passed, no MACD cross yet — monitor tomorrow:", watches.size());
 			watches.forEach(
-					r -> log.info("      {} | Score:{} | {} | Vol:{}x | {}", market.fullTicker(r.getStockCode()),
+					r -> log.info("      {} | Score:{} | {} | Vol:{}× | {}", market.fullTicker(r.getStockCode()),
 							String.format("%.1f", r.getScore()), market.formatPrice(r.getClosePrice()),
 							String.format("%.2f", r.getVolumeRatio()), r.getWarnings() != null ? r.getWarnings() : ""));
 		}
+		log.info("══════════════════════════════════════════════════════════════════");
 		log.info("");
 	}
 
