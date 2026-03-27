@@ -1,34 +1,48 @@
 package com.screener.service.dto;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
 public class MaCalculationRequest {
-	@NotBlank
+
+	@NotNull
 	private String market;
-	@NotBlank
-	private String timeframe;
+
+	private String timeframe = "DAILY";
+
 	@NotNull
-	@DecimalMin("0.0001")
 	private Double marketPrice;
+
 	@NotNull
-	@DecimalMin("0.0001")
 	private Double ma5;
+
 	@NotNull
-	@DecimalMin("0.0001")
 	private Double ma20;
+
 	@NotNull
-	@DecimalMin("0.0001")
 	private Double ma50;
-	@NotNull
-	@DecimalMin("0.0001")
-	private Double ma200;
+
+	// ── MA200 removed — replaced by KDJ + MACD momentum indicators ────
+
+	/** RSI14 — optional, enhances hold-day prediction */
 	private Double rsi14;
+
+	/** ATR14 — optional, used for dynamic stop-loss calculation */
 	private Double atr14;
+
+	/** Volume ratio vs average — optional but strongly recommended */
 	private Double volumeRatio;
+
+	// ── KDJ Oscillator ────────────────────────────────────────────────
+
+	/** KDJ K line (fast stochastic) */
+	private Double kdjK;
+
+	/** KDJ D line (smoothed K) */
+	private Double kdjD;
+
+	/** KDJ J line = 3K − 2D; oscillates wider, leads reversals */
+	private Double kdjJ;
+
 }
