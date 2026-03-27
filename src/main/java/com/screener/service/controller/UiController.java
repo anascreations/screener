@@ -160,40 +160,36 @@ public class UiController {
 //		}
 //		return INDEX;
 //	}
-	
 	// ─────────────────────────────────────────────────────────────────────────────
 	// REPLACE the existing maCalculation() method in UiController.java with this:
 	// ─────────────────────────────────────────────────────────────────────────────
-
-	    @PostMapping("ma/calculation")
-	    public String maCalculation(@ModelAttribute @Valid MaCalculationRequest request,
-	            BindingResult binding, Model model) {
-	        model.addAttribute("activeTab",    "ma-calc");
-	        model.addAttribute("market",       request.getMarket());
-	        model.addAttribute("timeframe",    request.getTimeframe());
-	        model.addAttribute("marketPrice",  request.getMarketPrice());
-	        model.addAttribute("ma5",          request.getMa5());
-	        model.addAttribute("ma20",         request.getMa20());
-	        model.addAttribute("ma50",         request.getMa50());
-	        // MA200 removed — replaced by KDJ + MACD
-	        model.addAttribute("rsi14",        request.getRsi14());
-	        model.addAttribute("atr14",        request.getAtr14());
-	        model.addAttribute("volumeRatio",  request.getVolumeRatio());
-	        // KDJ
-	        model.addAttribute("kdjK",         request.getKdjK());
-	        model.addAttribute("kdjD",         request.getKdjD());
-	        model.addAttribute("kdjJ",         request.getKdjJ());
-
-	        if (!binding.hasErrors()) {
-	            try {
-	                model.addAttribute("result",
-	                        screenerClient.maCalculation(request.getMarket(), request));
-	            } catch (WebClientResponseException e) {
-	                model.addAttribute("result", parseErrorBody(e));
-	            }
-	        }
-	        return INDEX;
-	    }
+	@PostMapping("ma/calculation")
+	public String maCalculation(@ModelAttribute @Valid MaCalculationRequest request, BindingResult binding,
+			Model model) {
+		model.addAttribute("activeTab", "ma-calc");
+		model.addAttribute("market", request.getMarket());
+		model.addAttribute("timeframe", request.getTimeframe());
+		model.addAttribute("marketPrice", request.getMarketPrice());
+		model.addAttribute("ma5", request.getMa5());
+		model.addAttribute("ma20", request.getMa20());
+		model.addAttribute("ma50", request.getMa50());
+		// MA200 removed — replaced by KDJ + MACD
+		model.addAttribute("rsi14", request.getRsi14());
+		model.addAttribute("atr14", request.getAtr14());
+		model.addAttribute("volumeRatio", request.getVolumeRatio());
+		// KDJ
+		model.addAttribute("kdjK", request.getKdjK());
+		model.addAttribute("kdjD", request.getKdjD());
+		model.addAttribute("kdjJ", request.getKdjJ());
+		if (!binding.hasErrors()) {
+			try {
+				model.addAttribute("result", screenerClient.maCalculation(request.getMarket(), request));
+			} catch (WebClientResponseException e) {
+				model.addAttribute("result", parseErrorBody(e));
+			}
+		}
+		return INDEX;
+	}
 
 	@PostMapping("ema/calculation")
 	public String emaCalculation(@RequestParam String market, @RequestParam double marketPrice,
