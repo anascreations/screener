@@ -775,7 +775,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <div class="tab-panel" id="tab-ma-calc" th:classappend="${activeTab=='ma-calc'} ? 'active'">
   <div><div class="pg-title">MA <span>Calculator</span></div>
-    <div class="pg-sub">6-Filter Stack — KDJ + MACD + Volume replace MA200</div></div>
+    <div class="pg-sub">Filter Stack — MA + KDJ + MACD + Volume</div></div>
 
   <!-- ── Reference strip ──────────────────────────────────────────── -->
   <div style="display:flex;flex-direction:column;gap:.7rem;">
@@ -866,6 +866,17 @@
     <input type="number" name="kdjJ" step="0.001" th:value="${kdjJ}" placeholder="79.400"/></div>
 </div>
 
+ <!-- Row 3: MACD -->
+        <div style="margin-bottom:.5rem;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">MACD — Step 5</div>
+        <!-- Row 3: MACD -->
+<div class="fg fg4" style="margin-bottom:.9rem;">
+  <div class="fld"><label>DIF</label>
+    <input type="number" name="macdDif" step="0.001" th:value="${macdDif}" placeholder="0.013"/></div>
+  <div class="fld"><label>DEA</label>
+    <input type="number" name="macdDea" step="0.001" th:value="${macdDea}" placeholder="0.011"/></div>
+  <div class="fld"><label>HISTOGRAM</label>
+    <input type="number" name="macdHistogram" step="0.001" th:value="${macdHistogram}" placeholder="0.004"/></div>
+</div>
        
         <!-- Row 4: optional add-ons -->
         <div style="margin-bottom:.5rem;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Volume + Optional</div>
