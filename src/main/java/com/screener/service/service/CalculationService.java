@@ -326,7 +326,7 @@ public class CalculationService {
 		level1.put("emoji", atrMultiple < 1.0 ? "🟢 RECOMMENDED" : "🟡 USE ONLY IF MOMENTUM STRONG");
 		level1.put("queuePrice", price);
 		level1.put("rationale", atrMultiple < 1.0 ? "Gap (" + gap
-				+ ") is smaller than 1 ATR — price is unlikely to pull back to MA5. Entering now captures the move."
+				+ ") is smaller than 1 ATR — price is unlikely to pullback to MA5. Entering now captures the move."
 				: "Gap is larger than 1 ATR. Entering now means accepting higher risk and lower R:R. Only if KDJ + MACD both strongly bullish.");
 		level1.put("stopLoss", stopLoss);
 		level1.put("riskPerUnit", risk1);
@@ -354,7 +354,7 @@ public class CalculationService {
 		level2.put("tp2", round4(fib382 + risk2 * 2.0));
 		level2.put("tp3", round4(fib382 + risk2 * 3.5));
 		level2.put("rrRatio", risk2 > 0 ? "1:" + round2((fib382 + risk2 * 2.0 - fib382) / risk2) : "N/A");
-		level2.put("missFillRisk", "If price does not pull back to " + fib382
+		level2.put("missFillRisk", "If price does not pullback to " + fib382
 				+ ", you miss the trade at this level. Use split fill as backup.");
 		planner.put("level2_moderate", level2);
 		// ── Level 3: CONSERVATIVE — queue at MA5 ──────────────────────
