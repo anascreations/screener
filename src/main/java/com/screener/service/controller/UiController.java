@@ -19,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.screener.service.client.ScreenerClient;
+import com.screener.service.dto.EmaCalculationRequest;
 import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.TrendDistanceRequest;
 
@@ -170,22 +171,33 @@ public class UiController {
 	}
 
 	@PostMapping("ema/calculation")
-	public String emaCalculation(@RequestParam String market, @RequestParam double marketPrice,
-			@RequestParam double ema9, @RequestParam double ema21, @RequestParam double ema50,
-			@RequestParam double ema200, @RequestParam(defaultValue = "DAILY") String timeframe, Model model) {
+	public String emaCalculation(@ModelAttribute @Valid EmaCalculationRequest request, BindingResult binding,
+			Model model) {
 		model.addAttribute("activeTab", "ema-calc");
-		model.addAttribute("market", market);
-		model.addAttribute("timeframe", timeframe);
-		model.addAttribute("marketPrice", marketPrice);
-		model.addAttribute("ema9", ema9);
-		model.addAttribute("ema21", ema21);
-		model.addAttribute("ema50", ema50);
-		model.addAttribute("ema200", ema200);
-		try {
-			model.addAttribute("result", screenerClient.emaCalculation(market.toLowerCase(), marketPrice, ema9, ema21,
-					ema50, ema200, timeframe));
-		} catch (WebClientResponseException e) {
-			model.addAttribute("result", parseErrorBody(e));
+		model.addAttribute("market", request.getMarket());
+		model.addAttribute("timeframe", request.getTimeframe());
+		model.addAttribute("marketPrice", request.getMarketPrice());
+		model.addAttribute("ema8", request.getEma8());
+		model.addAttribute("ema21", request.getEma21());
+		model.addAttribute("ema55", request.getEma55());
+		// MA200 removed — replaced by KDJ + MACD
+		model.addAttribute("rsi14", request.getRsi14());
+		model.addAttribute("atr14", request.getAtr14());
+		model.addAttribute("volumeRatio", request.getVolumeRatio());
+		// KDJ
+		model.addAttribute("kdjK", request.getKdjK());
+		model.addAttribute("kdjD", request.getKdjD());
+		model.addAttribute("kdjJ", request.getKdjJ());
+		// MACD
+		model.addAttribute("macdDif", request.getMacdDif());
+		model.addAttribute("macdDea", request.getMacdDea());
+		model.addAttribute("macdHistogram", request.getMacdHistogram());
+		if (!binding.hasErrors()) {
+			try {
+				model.addAttribute("result", screenerClient.emaCalculation(request.getMarket(), request));
+			} catch (WebClientResponseException e) {
+				model.addAttribute("result", parseErrorBody(e));
+			}
 		}
 		return INDEX;
 	}

@@ -13,6 +13,7 @@ import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
 
+import com.screener.service.dto.EmaCalculationRequest;
 import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.TrendDistanceRequest;
 
@@ -42,6 +43,9 @@ public interface ScreenerClient {
 	@PostExchange("{market}/ma/calculation")
 	Map<String, Object> maCalculation(@PathVariable String market, @RequestBody MaCalculationRequest request);
 
+	@PostExchange("{market}/ema/calculation")
+	Map<String, Object> emaCalculation(@PathVariable String market, @RequestBody EmaCalculationRequest request);
+
 	@GetExchange("{market}/ema/calculation/{mp}/{e9}/{e21}/{e50}/{e200}")
 	Map<String, Object> emaCalculation(@PathVariable String market, @PathVariable double mp, @PathVariable double e9,
 			@PathVariable double e21, @PathVariable double e50, @PathVariable double e200,
@@ -56,4 +60,5 @@ public interface ScreenerClient {
 
 	@PostExchange(value = "{market}/level2/analyze-image", contentType = MediaType.MULTIPART_FORM_DATA_VALUE)
 	Map<String, Object> level2Image(@PathVariable String market, @RequestPart("image") MultipartFile image);
+
 }
