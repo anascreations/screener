@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.screener.service.dto.EmaCalculationRequest;
 import com.screener.service.dto.Level2Request;
 import com.screener.service.dto.MaCalculationRequest;
 import com.screener.service.dto.PullbackRequest;
@@ -35,6 +36,7 @@ import com.screener.service.model.ScanResult;
 import com.screener.service.repository.ScanResultRepository;
 import com.screener.service.service.AnalysisService;
 import com.screener.service.service.CalculationService;
+import com.screener.service.service.EmaCalculationService;
 import com.screener.service.service.ExchangeMyService;
 import com.screener.service.service.OcrService;
 import com.screener.service.service.PullbackService;
@@ -59,6 +61,7 @@ public class ScreenerController {
 	private final PullbackService pullbackService;
 	private final OcrService ocrService;
 	private final CalculationService calcService;
+	private final EmaCalculationService emaCalcService;
 
 	@PostMapping(value = "level2/analyze-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, Object>> analyzeImage(@RequestParam("image") MultipartFile file) {
@@ -726,5 +729,10 @@ public class ScreenerController {
 		tradePlan.put("tp3Note", String.format("Sell 20%% at %.4f  (R:R 1:3.5) — trail stop or hold", tp3));
 		resp.put("tradePlan", tradePlan);
 		return ResponseEntity.ok(resp);
+	}
+
+	@PostMapping("ema/calculation")
+	public ResponseEntity<Map<String, Object>> emaCalculation(@RequestBody @Valid EmaCalculationRequest request) {
+		return ResponseEntity.ok(emaCalcService.emaCalculate(request));
 	}
 }
