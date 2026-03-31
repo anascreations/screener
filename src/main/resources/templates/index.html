@@ -2048,7 +2048,7 @@
     </th:block>
   </div><!-- /tab-ma-calc -->
 
- <!-- ═══════════════ EMA CALCULATOR ═══════════════ -->
+<!-- ═══════════════ EMA CALCULATOR ═══════════════ -->
 <!-- Replace the existing tab-ema-calc div in index.html with this block -->
 <div class="tab-panel" id="tab-ema-calc" th:classappend="${activeTab=='ema-calc'} ? 'active'">
   <div class="pg-header">
@@ -2133,8 +2133,9 @@
   <div class="card">
     <div class="card-hdr"><span class="ci">≋</span>Parameters — EMA 5-Filter Stack</div>
     <div class="card-body">
-      <form method="post" th:action="@{/ui/ema/calculation}" onsubmit="busy(this)">
+      <form method="post" th:action="@{/ui/ema/calculation}" onsubmit="busy(this)" id="ema-calc-form">
 
+        <!-- ── Section 1: EMA Stack + Price ──────────────── -->
         <div class="form-section-label">EMA Stack + Price</div>
         <div class="fg fg4" style="margin-bottom:1.1rem;">
           <div class="fld">
@@ -2157,7 +2158,7 @@
           </div>
           <div class="fld">
             <label>Market Price</label>
-            <input type="number" name="marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.42" required/>
+            <input type="number" name="marketPrice" id="ema-marketPrice" step="0.0001" th:value="${marketPrice}" placeholder="1.42" required oninput="updateEmaInsights()"/>
           </div>
           <div class="fld">
             <label>EMA8</label>
@@ -2173,6 +2174,69 @@
           </div>
         </div>
 
+        <!-- ── Section 2: Price Context (NEW) ─────────────── -->
+        <div class="form-section-label">Price Context — OHLC &amp; Market Profile</div>
+        <div class="fg fg4" style="margin-bottom:1.1rem;">
+          <div class="fld">
+            <label data-tip="Today's opening price — compare vs current for gap direction">Open</label>
+            <input type="number" name="openPrice" id="ema-open" step="0.0001" th:value="${openPrice}" placeholder="0.330" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="Previous session close — key reference level">Prev Close</label>
+            <input type="number" name="prevClose" id="ema-prevClose" step="0.0001" th:value="${prevClose}" placeholder="0.330" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="Today's intraday high">Day High</label>
+            <input type="number" name="dayHigh" id="ema-high" step="0.0001" th:value="${dayHigh}" placeholder="0.360" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="Today's intraday low">Day Low</label>
+            <input type="number" name="dayLow" id="ema-low" step="0.0001" th:value="${dayLow}" placeholder="0.330" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="52-week high — measures distance from peak">52wk High</label>
+            <input type="number" name="wk52High" id="ema-52h" step="0.0001" th:value="${wk52High}" placeholder="0.514" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="52-week low — measures distance from base">52wk Low</label>
+            <input type="number" name="wk52Low" id="ema-52l" step="0.0001" th:value="${wk52Low}" placeholder="0.272" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="Beta vs market index — volatility coefficient. &gt;1 = more volatile">Beta</label>
+            <input type="number" name="beta" id="ema-beta" step="0.001" th:value="${beta}" placeholder="1.062" oninput="updateEmaInsights()"/>
+          </div>
+          <div class="fld">
+            <label data-tip="Bid/Ask ratio — demand pressure indicator. &gt;60% = strong demand">Bid/Ask Ratio %</label>
+            <input type="number" name="bidAskRatio" id="ema-bidask" step="0.01" min="0" max="100" th:value="${bidAskRatio}" placeholder="60.45" oninput="updateEmaInsights()"/>
+          </div>
+        </div>
+
+        <!-- ── Live Insight Panel (computed client-side) ───── -->
+        <div id="ema-insights-panel" style="display:none;margin-bottom:1.1rem;">
+          <div class="form-section-label">📊 Live Price Insights</div>
+          <div class="stat-grid" id="ema-insights-grid" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));">
+            <!-- populated by JS -->
+          </div>
+          <!-- Range bar -->
+          <div id="ema-range-bar-wrap" style="display:none;margin-top:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.75rem 1rem;">
+            <div style="display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;">
+              <span id="ema-rb-low">Low</span>
+              <span style="color:var(--accent);">Day Range Position</span>
+              <span id="ema-rb-high">High</span>
+            </div>
+            <div style="position:relative;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+              <div id="ema-range-fill" style="position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--green2),var(--accent));border-radius:3px;width:0%;transition:width .3s;"></div>
+              <div id="ema-range-marker" style="position:absolute;top:-3px;width:12px;height:12px;background:var(--accent);border-radius:50%;border:2px solid var(--bg);transition:left .3s;left:0;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:.35rem;">
+              <span>Low = <span id="ema-rb-pct-low" style="color:var(--text);">—</span></span>
+              <span>Price at <span id="ema-rb-pct" style="color:var(--accent);font-weight:600;">—</span> of range</span>
+              <span>High = <span id="ema-rb-pct-high" style="color:var(--text);">—</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Section 3: KDJ ─────────────────────────────── -->
         <div class="form-section-label">KDJ Oscillator — Step 4 (recommended)</div>
         <div class="fg fg4" style="margin-bottom:1.1rem;">
           <div class="fld"><label>KDJ — K</label><input type="number" name="kdjK" step="0.001" th:value="${kdjK}" placeholder="65.300"/></div>
@@ -2180,6 +2244,7 @@
           <div class="fld"><label>KDJ — J</label><input type="number" name="kdjJ" step="0.001" th:value="${kdjJ}" placeholder="79.400"/></div>
         </div>
 
+        <!-- ── Section 4: MACD ────────────────────────────── -->
         <div class="form-section-label">MACD — Step 5</div>
         <div class="fg fg4" style="margin-bottom:1.1rem;">
           <div class="fld"><label>DIF</label><input type="number" name="macdDif" step="0.001" th:value="${macdDif}" placeholder="0.013"/></div>
@@ -2187,6 +2252,7 @@
           <div class="fld"><label>Histogram</label><input type="number" name="macdHistogram" step="0.001" th:value="${macdHistogram}" placeholder="0.004"/></div>
         </div>
 
+        <!-- ── Section 5: Volume + Extras ────────────────── -->
         <div class="form-section-label">Volume + Optional Indicators</div>
         <div class="fg fg4">
           <div class="fld"><label>Volume Ratio — Step 5b</label><input type="number" name="volumeRatio" step="0.01" min="0" th:value="${volumeRatio}" placeholder="1.99"/></div>
@@ -2196,13 +2262,13 @@
 
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">▶ Calculate</button>
-          <button class="btn btn-secondary" type="reset">↺ Clear</button>
+          <button class="btn btn-secondary" type="reset" onclick="clearEmaInsights()">↺ Clear</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ── Results ────────────────────────────────────── -->
+  <!-- ── Results (unchanged from original) ─────────── -->
   <th:block th:if="${result != null and activeTab == 'ema-calc'}">
     <div class="err-banner" th:if="${result['error'] != null}">
       <span class="err-icon">⚠</span>
@@ -2924,6 +2990,136 @@
       if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active');
     });
   })();
+  
+  (function() {
+  function fmt(v, d) { return v == null ? '—' : parseFloat(v).toFixed(d !== undefined ? d : 2); }
+  function pct(v, base) { if (!base || base == 0) return null; return ((v - base) / base * 100); }
+
+  function insightCell(label, value, colorClass, sub) {
+    return '<div class="stat-cell">' +
+      '<div class="stat-label">' + label + '</div>' +
+      '<div class="stat-value ' + (colorClass||'') + '" style="font-size:13px;">' + value + '</div>' +
+      (sub ? '<div class="stat-sub">' + sub + '</div>' : '') +
+      '</div>';
+  }
+
+  window.updateEmaInsights = function() {
+    var price   = parseFloat(document.getElementById('ema-marketPrice')?.value);
+    var open    = parseFloat(document.getElementById('ema-open')?.value);
+    var close   = parseFloat(document.getElementById('ema-prevClose')?.value);
+    var high    = parseFloat(document.getElementById('ema-high')?.value);
+    var low     = parseFloat(document.getElementById('ema-low')?.value);
+    var w52h    = parseFloat(document.getElementById('ema-52h')?.value);
+    var w52l    = parseFloat(document.getElementById('ema-52l')?.value);
+    var beta    = parseFloat(document.getElementById('ema-beta')?.value);
+    var bidask  = parseFloat(document.getElementById('ema-bidask')?.value);
+
+    var panel = document.getElementById('ema-insights-panel');
+    var grid  = document.getElementById('ema-insights-grid');
+    if (!panel || !grid) return;
+
+    var cells = [];
+    var hasAny = false;
+
+    // Gap from open
+    if (!isNaN(price) && !isNaN(open) && open > 0) {
+      hasAny = true;
+      var gapPct = pct(price, open);
+      var gapCol = gapPct >= 0 ? 'green' : 'red';
+      var gapLbl = gapPct >= 2 ? '🚀 Strong gap-up' : gapPct >= 0 ? '↑ Positive' : gapPct >= -2 ? '↓ Mild gap-down' : '⚠️ Gap-down';
+      cells.push(insightCell('vs Open', (gapPct >= 0 ? '+' : '') + fmt(gapPct) + '%', gapCol, gapLbl));
+    }
+
+    // Change from prev close
+    if (!isNaN(price) && !isNaN(close) && close > 0) {
+      hasAny = true;
+      var chgPct = pct(price, close);
+      var chgCol = chgPct >= 0 ? 'green' : 'red';
+      var chgLbl = Math.abs(chgPct) >= 5 ? 'Strong move' : Math.abs(chgPct) >= 2 ? 'Moderate move' : 'Mild move';
+      cells.push(insightCell('vs Prev Close', (chgPct >= 0 ? '+' : '') + fmt(chgPct) + '%', chgCol, chgLbl));
+    }
+
+    // Day range position
+    if (!isNaN(price) && !isNaN(high) && !isNaN(low) && high > low) {
+      hasAny = true;
+      var rangePct = ((price - low) / (high - low)) * 100;
+      var rangeCol = rangePct >= 70 ? 'green' : rangePct >= 40 ? 'accent' : 'red';
+      var rangeLbl = rangePct >= 80 ? '🔝 Near day high' : rangePct >= 50 ? '↑ Upper half' : rangePct >= 30 ? '↔ Mid range' : '🔻 Near day low';
+      cells.push(insightCell('Day Range %', fmt(rangePct) + '%', rangeCol, rangeLbl));
+
+      // Update range bar
+      var barWrap  = document.getElementById('ema-range-bar-wrap');
+      var fill     = document.getElementById('ema-range-fill');
+      var marker   = document.getElementById('ema-range-marker');
+      var rbPct    = document.getElementById('ema-rb-pct');
+      var rbLow    = document.getElementById('ema-rb-pct-low');
+      var rbHigh   = document.getElementById('ema-rb-pct-high');
+      var rbLowLbl = document.getElementById('ema-rb-low');
+      var rbHiLbl  = document.getElementById('ema-rb-high');
+      if (barWrap) {
+        barWrap.style.display = 'block';
+        var pctClamped = Math.min(100, Math.max(0, rangePct));
+        fill.style.width   = pctClamped + '%';
+        marker.style.left  = 'calc(' + pctClamped + '% - 6px)';
+        if (rbPct)    rbPct.textContent    = fmt(rangePct) + '%';
+        if (rbLow)    rbLow.textContent    = fmt(low, 4);
+        if (rbHigh)   rbHigh.textContent   = fmt(high, 4);
+        if (rbLowLbl) rbLowLbl.textContent = 'Low ' + fmt(low, 4);
+        if (rbHiLbl)  rbHiLbl.textContent  = 'High ' + fmt(high, 4);
+      }
+    }
+
+    // 52-week position
+    if (!isNaN(price) && !isNaN(w52h) && !isNaN(w52l) && w52h > w52l) {
+      hasAny = true;
+      var fromHigh = pct(price, w52h);
+      var fromLow  = pct(price, w52l);
+      var highCol  = fromHigh >= -5 ? 'green' : fromHigh >= -20 ? 'accent' : 'red';
+      var lowCol   = fromLow >= 50 ? 'green' : fromLow >= 20 ? 'accent' : 'yellow';
+      cells.push(insightCell('From 52wk High', (fromHigh >= 0 ? '+' : '') + fmt(fromHigh) + '%', highCol,
+        fromHigh >= -5 ? '🔝 Near 52wk high' : fromHigh >= -20 ? 'Mid recovery' : '📉 Far from high'));
+      cells.push(insightCell('From 52wk Low',  '+' + fmt(fromLow) + '%', lowCol,
+        fromLow >= 100 ? '🚀 Doubled from low' : fromLow >= 50 ? 'Strong recovery' : '⚠️ Still near low'));
+    }
+
+    // Beta risk note
+    if (!isNaN(beta)) {
+      hasAny = true;
+      var betaCol = beta > 1.5 ? 'red' : beta > 1.0 ? 'yellow' : beta > 0.5 ? 'accent' : 'green';
+      var betaLbl = beta > 2.0 ? '🔴 Very high vol' : beta > 1.5 ? '🟡 High vol — reduce size' :
+                    beta > 1.0 ? '⚠️ Above market' : beta > 0.5 ? '✅ Normal' : '🟢 Low vol';
+      cells.push(insightCell('Beta', fmt(beta, 3), betaCol, betaLbl));
+    }
+
+    // Bid/Ask demand pressure
+    if (!isNaN(bidask)) {
+      hasAny = true;
+      var baCol  = bidask >= 60 ? 'green' : bidask >= 40 ? 'accent' : 'red';
+      var baLbl  = bidask >= 70 ? '💪 Strong demand' : bidask >= 50 ? '🟢 Buyers in control' :
+                   bidask >= 40 ? '↔ Balanced' : '🔴 Sellers dominating';
+      cells.push(insightCell('Bid/Ask Ratio', fmt(bidask, 1) + '%', baCol, baLbl));
+    }
+
+    if (hasAny) {
+      panel.style.display = 'block';
+      grid.innerHTML = cells.join('');
+    } else {
+      panel.style.display = 'none';
+    }
+  };
+
+  window.clearEmaInsights = function() {
+    var panel = document.getElementById('ema-insights-panel');
+    var barWrap = document.getElementById('ema-range-bar-wrap');
+    if (panel) panel.style.display = 'none';
+    if (barWrap) barWrap.style.display = 'none';
+  };
+
+  // Re-trigger on page load if values already populated (Thymeleaf repopulate after POST)
+  document.addEventListener('DOMContentLoaded', function() {
+    updateEmaInsights();
+  });
+})();
 </script>
 </body>
 </html>

@@ -306,6 +306,75 @@ public class EmaCalculationService {
 			if (req.hasRsi() && req.getRsi14() < 40)
 				warnings.add("🔴 RSI bearish (<40)");
 
+			// ── Beta warnings ────────────────────────────────────────────────
+			if (req.hasBeta()) {
+			    double b = req.getBeta();
+			    if (b > 2.0) {
+			        warnings.add("🔴 Beta " + fmt2(b) + " — extremely volatile, cut position to 25%");
+			        if (score > 0) score = (int)(score * 0.75); // penalise score
+			    } else if (b > 1.5) {
+			        warnings.add("🟡 Beta " + fmt2(b) + " — high volatility, reduce position size");
+			    } else if (b < 0.5) {
+			        confluences.add("🟢 Low Beta (" + fmt2(b) + ") — stable, lower risk");
+			    }
+			    result.put("betaNote", classifyBeta(b));
+			}
+
+			// ── Bid/Ask pressure ─────────────────────────────────────────────
+			if (req.hasBidAsk()) {
+			    double ba = req.getBidAskRatio();
+			    String baZone = classifyBidAsk(ba);
+			    result.put("bidAskZone", baZone);
+			    if (ba >= 65) {
+			        confluences.add("💪 Bid/Ask " + fmt2(ba) + "% — strong buyer dominance");
+			        score += 3;
+			    } else if (ba >= 50) {
+			        confluences.add("🟢 Bid/Ask " + fmt2(ba) + "% — buyers in control");
+			    } else if (ba < 35) {
+			        warnings.add("🔴 Bid/Ask " + fmt2(ba) + "% — sellers dominating, weak demand");
+			    }
+			}
+
+			// ── 52-week context ──────────────────────────────────────────────
+			if (req.has52Week()) {
+			    double fromHigh = pct(price, req.getWk52High());
+			    double fromLow  = pct(price, req.getWk52Low());
+			    result.put("pctFrom52wkHigh", fmt2(fromHigh) + "%");
+			    result.put("pctFrom52wkLow",  fmt2(fromLow)  + "%");
+			    if (fromHigh >= -5) {
+			        warnings.add("⚠️ Price within 5% of 52wk high — breakout or rejection risk");
+			    }
+			    if (fromLow < 10) {
+			        warnings.add("⛔ Price near 52wk low — weak structure, avoid long");
+			    }
+			    if (fromLow >= 20 && fromHigh <= -10) {
+			        confluences.add("📐 52wk position healthy — recovery zone (" + fmt2(fromLow) + "% from low)");
+			    }
+			}
+
+			// ── Day range & gap context ──────────────────────────────────────
+			if (req.hasOhlc()) {
+			    double h = req.getDayHigh(), l = req.getDayLow();
+			    double rangePct = pct(h, l);
+			    double posInRange = (h > l) ? ((price - l) / (h - l) * 100) : 0;
+			    result.put("dayRangePct", fmt2(rangePct) + "%");
+			    result.put("positionInRange", fmt2(posInRange) + "%");
+			    if (posInRange >= 75) {
+			        confluences.add("🔝 Price in upper 25% of day range — strong intraday momentum");
+			    } else if (posInRange <= 25) {
+			        warnings.add("🔻 Price in lower 25% of day range — weak intraday close");
+			    }
+			}
+			if (req.hasPrevClose() && req.getPrevClose() > 0) {
+			    double chgPct = pct(price, req.getPrevClose());
+			    result.put("pctChangeDay", fmt2(chgPct) + "%");
+			    if (chgPct >= 5) {
+			        confluences.add("🚀 Strong day gain +" + fmt2(chgPct) + "% — momentum confirmed");
+			    } else if (chgPct <= -3) {
+			        warnings.add("🔴 Day decline " + fmt2(chgPct) + "% — bearish session");
+			    }
+			}
+			
 			result.put("confluences", confluences);
 			result.put("warnings", warnings);
 
@@ -334,7 +403,21 @@ public class EmaCalculationService {
 
 		return result;
 	}
+	private String classifyBeta(double beta) {
+	    if (beta > 2.0) return "🔴 Very High (" + fmt2(beta) + ") — extreme volatility, 25% max size";
+	    if (beta > 1.5) return "🟡 High (" + fmt2(beta) + ") — reduce position size";
+	    if (beta > 1.0) return "⚠️ Above market (" + fmt2(beta) + ") — normal caution";
+	    if (beta > 0.5) return "✅ Normal (" + fmt2(beta) + ") — standard sizing";
+	    return "🟢 Low (" + fmt2(beta) + ") — stable stock";
+	}
 
+	private String classifyBidAsk(double ratio) {
+	    if (ratio >= 70) return "💪 Strong demand (≥70%) — buyers dominating";
+	    if (ratio >= 55) return "🟢 Buyers in control (55–70%)";
+	    if (ratio >= 45) return "↔ Balanced market (45–55%)";
+	    if (ratio >= 35) return "🟡 Mild selling pressure (35–45%)";
+	    return "🔴 Sellers dominating (<35%) — avoid entry";
+	}
 
 	private String calcTrendGrade(double pctGap) {
 		if (pctGap < 0)
