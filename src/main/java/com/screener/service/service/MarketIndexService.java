@@ -28,7 +28,6 @@ import com.screener.service.exception.ExternalApiException;
 import com.screener.service.exception.RateLimitException;
 import com.screener.service.exception.SessionExpiredException;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -57,7 +56,7 @@ public class MarketIndexService {
 		this.objectMapper = objectMapper;
 	}
 
-	@PostConstruct
+	// @PostConstruct
 	public void init() {
 		try {
 			refreshSession();

@@ -118,29 +118,6 @@ header {
 
 .header-spacer { flex: 1; }
 
-.live-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  padding: .25rem .75rem;
-  border-radius: 99px;
-  border: 1px solid rgba(0,232,122,.3);
-  background: rgba(0,232,122,.07);
-  color: var(--green);
-  font-size: 10px;
-  letter-spacing: .1em;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.live-badge::before {
-  content: '';
-  width: 6px; height: 6px;
-  background: var(--green);
-  border-radius: 50%;
-  animation: blink 1.5s ease infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-
 .theme-toggle {
   display: flex;
   align-items: center;
