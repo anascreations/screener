@@ -149,7 +149,7 @@ public class IndicatorService {
 
 	private double detectCandlePattern(DailyBar d0, DailyBar d1, DailyBar d2) {
 		double range0 = d0.high() - d0.low();
-		double body0 = d0.close() - d0.open(); // positive = bullish
+		double body0 = d0.close() - d0.open();
 		double range1 = d1.high() - d1.low();
 		double body1 = d1.close() - d1.open();
 		double range2 = d2.high() - d2.low();

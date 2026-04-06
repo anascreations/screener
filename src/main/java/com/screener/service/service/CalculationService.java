@@ -171,22 +171,17 @@ public class CalculationService {
 		return resp;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// MA CALCULATOR — 6-Filter Stack
-	// ══════════════════════════════════════════════════════════════════
 	public Map<String, Object> maCalculate(MaCalculationRequest req) {
 		double price = req.getMarketPrice();
 		double ma5 = req.getMa5();
 		double ma20 = req.getMa20();
 		double ma50 = req.getMa50();
-		// ATR is needed early for queue price planner
 		Double atr14 = req.getAtr14();
 		TimeframeConfig tf = TimeframeConfig.of(req.getTimeframe());
 		List<String> warnings = new ArrayList<>();
 		List<String> confluences = new ArrayList<>();
 		Map<String, Object> resp = new LinkedHashMap<>();
 		resp.put("input", buildInput(req, tf));
-		// ── STEP 1: MA alignment hard-stops — null-safe ───────────────
 		if (price < ma20)
 			return buildSkip(resp,
 					String.format("STEP 1 FAIL — Price (%.4f) below MA20 (%.4f). Support broken.", price, ma20),
@@ -205,7 +200,6 @@ public class CalculationService {
 							String.format("MA20 is %.4f (%.2f%%) below MA50", ma50 - ma20, (ma50 - ma20) / ma50 * 100),
 							"note", "MA5 > MA20 > MA50 stack must be fully aligned."));
 		confluences.add("✅ STEP 1 PASS — MA5 > MA20 > MA50 fully aligned");
-		// ── Distance calculations ──────────────────────────────────────
 		double pctAboveMA20 = (price - ma20) / ma20 * 100;
 		double pctAboveMA5 = (price - ma5) / ma5 * 100;
 		double ma5AboveMA20 = (ma5 - ma20) / ma20 * 100;
@@ -215,29 +209,22 @@ public class CalculationService {
 		TrendGrade trendGrade = resolveTrendGrade(ma20VsMa50Pct);
 		resolveStep2(priceZone, pctAboveMA20, ma20, confluences, warnings);
 		resolveStep3(trendGrade, ma20VsMa50Pct, confluences, warnings);
-		// ── STEP 4: KDJ — null-safe, no duplicate branches ────────────
 		KdjZone kdjZone = resolveKdjZone(req.getKdjK(), req.getKdjD(), req.getKdjJ(), confluences, warnings);
-		// KDJ divergence check — only when both price gap AND KDJ are available
 		checkKdjDivergence(price, ma5, req.getKdjJ(), warnings);
-		// ── STEP 5: MACD DIF / DEA / Histogram ───────────────────────
 		MacdMomentumZone macdZone = resolveMacdZone(req.getMacdDif(), req.getMacdDea(), req.getMacdHistogram(),
 				confluences, warnings);
-		// ── STEP 6: Volume conviction ──────────────────────────────────
 		VolumeZone volumeZone = VolumeZone.UNKNOWN;
 		if (req.getVolumeRatio() != null)
 			volumeZone = resolveVolumeZone(req.getVolumeRatio(), confluences, warnings);
 		else
 			warnings.add("⚠️ STEP 6 — Volume ratio not provided, conviction unconfirmed");
-		// ── RSI14 optional add-on ─────────────────────────────────────
 		RsiZone rsiZone = RsiZone.UNKNOWN;
 		if (req.getRsi14() != null)
 			rsiZone = resolveRsiZone(req.getRsi14(), confluences, warnings);
-		// ── Scoring & risk ─────────────────────────────────────────────
 		SignalScore signalScore = resolveSignalScore(priceZone, trendGrade, rsiZone, volumeZone, kdjZone, macdZone);
 		RiskLevel riskLevel = resolveRiskLevel(priceZone, trendGrade, rsiZone, volumeZone, kdjZone, macdZone);
 		HoldCalculation hold = resolveHoldDays(pctAboveMA20, ma20VsMa50Pct, req.getRsi14(), req.getVolumeRatio(), atr14,
 				price, tf);
-		// ── Response assembly ──────────────────────────────────────────
 		resp.put("decision", riskLevel.decision);
 		resp.put("emoji", riskLevel.emoji);
 		resp.put("risk", riskLevel.label);
@@ -263,7 +250,6 @@ public class CalculationService {
 		resp.put("maAlignment", buildMaAlignment(price, ma5, ma20, ma50));
 		if ("SKIP".equals(riskLevel.decision))
 			return resp;
-		// ── Trade plan + Queue Price Planner ──────────────────────────
 		double entryIdeal = pctAboveMA5 <= 0.5 ? round4(price) : round4(ma5);
 		double entryMax = round4(price);
 		double stopLoss = resolveStopLoss(price, ma20, ma50, tf, atr14, warnings);
@@ -280,20 +266,10 @@ public class CalculationService {
 		return resp;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// QUEUE PRICE PLANNER — answers "what if MA5 never fills?"
-	//
-	// Rule: gap = currentPrice − MA5
-	// Level 1 (AGGRESSIVE) gap < 1× ATR → buy now, no queue needed
-	// Level 2 (MODERATE) gap 1–2× ATR → queue at 38.2% fib pullback
-	// Level 3 (CONSERVATIVE) gap > 2× ATR → queue at MA5 (original)
-	// SPLIT FILL 50% now + 50% at MA5 (always available)
-	// ══════════════════════════════════════════════════════════════════
 	private Map<String, Object> buildQueuePricePlanner(double price, double ma5, double stopLoss, double baseRisk,
 			double tp1, double tp2, double tp3, Double atr14) {
 		Map<String, Object> planner = new LinkedHashMap<>();
 		double gap = round4(price - ma5);
-		// ── Without ATR: show gap in % only, give qualitative advice ──
 		if (atr14 == null || atr14 <= 0) {
 			double gapPct = round4((gap / ma5) * 100);
 			planner.put("note",
@@ -306,12 +282,10 @@ public class CalculationService {
 							"Enter 50% now + queue 50% at MA5. If MA5 never fills, you still caught half the move."));
 			return planner;
 		}
-		// ── With ATR: precise 3-level decision ────────────────────────
-		double atrMultiple = gap / atr14; // how many ATRs is the gap?
-		double fib382 = round4(price - gap * 0.382); // 38.2% pullback
-		double fib500 = round4(price - gap * 0.500); // 50% pullback (midpoint)
-		double fib618 = round4(price - gap * 0.618); // 61.8% pullback ≈ MA5 zone
-		// Recalculate R:R from each queue level (SL stays same)
+		double atrMultiple = gap / atr14;
+		double fib382 = round4(price - gap * 0.382);
+		double fib500 = round4(price - gap * 0.500);
+		double fib618 = round4(price - gap * 0.618);
 		double risk1 = round4(price - stopLoss);
 		double risk2 = round4(fib382 - stopLoss);
 		double risk3 = round4(ma5 - stopLoss);
@@ -320,7 +294,6 @@ public class CalculationService {
 				atrMultiple < 1.0 ? "Gap < 1× ATR — MA5 likely won't fill. Enter now."
 						: atrMultiple < 2.0 ? "Gap 1–2× ATR — Moderate chance of pullback. Split or Fib queue."
 								: "Gap > 2× ATR — High chance of at least partial pullback. Queue recommended."));
-		// ── Level 1: AGGRESSIVE — enter at current price ──────────────
 		Map<String, Object> level1 = new LinkedHashMap<>();
 		level1.put("label", "AGGRESSIVE — Enter Now");
 		level1.put("emoji", atrMultiple < 1.0 ? "🟢 RECOMMENDED" : "🟡 USE ONLY IF MOMENTUM STRONG");
@@ -336,7 +309,6 @@ public class CalculationService {
 		level1.put("rrRatio", risk1 > 0 ? "1:" + round2((tp2 - price) / risk1) : "N/A");
 		level1.put("positionNote", "Full planned size");
 		planner.put("level1_aggressive", level1);
-		// ── Level 2: MODERATE — queue at Fib 38.2% ────────────────────
 		Map<String, Object> level2 = new LinkedHashMap<>();
 		level2.put("label", "MODERATE — Queue at Fib 38.2% Pullback");
 		level2.put("emoji", atrMultiple >= 1.0 && atrMultiple < 2.0 ? "🟢 RECOMMENDED" : "⚪ OPTIONAL");
@@ -357,7 +329,6 @@ public class CalculationService {
 		level2.put("missFillRisk", "If price does not pullback to " + fib382
 				+ ", you miss the trade at this level. Use split fill as backup.");
 		planner.put("level2_moderate", level2);
-		// ── Level 3: CONSERVATIVE — queue at MA5 ──────────────────────
 		Map<String, Object> level3 = new LinkedHashMap<>();
 		level3.put("label", "CONSERVATIVE — Queue at MA5 (Original)");
 		level3.put("emoji", atrMultiple >= 2.0 ? "🟢 RECOMMENDED" : "⚪ BEST R:R BUT MAY NOT FILL");
@@ -378,9 +349,7 @@ public class CalculationService {
 		level3.put("cancelNote",
 				"If price breaks above entryMax without touching MA5 — cancel this queue and reassess.");
 		planner.put("level3_conservative", level3);
-		// ── Split Fill — always available, the safest compromise ───────
 		planner.put("splitFill", buildSplitFill(price, ma5, stopLoss, baseRisk, tp1, tp2, tp3));
-		// ── Recommendation ────────────────────────────────────────────
 		String rec, recEmoji;
 		if (atrMultiple < 1.0) {
 			rec = "Gap is less than 1 ATR. MA5 pullback is unlikely before the next leg up. Use LEVEL 1 (enter now) for the full position, or SPLIT FILL as a compromise.";
@@ -417,23 +386,13 @@ public class CalculationService {
 		return split;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// STEP 4 — KDJ (fixed: null check FIRST, no duplicate branches)
-	// ══════════════════════════════════════════════════════════════════
-	/**
-	 * BUG FIX: The original email version computed (k - d) > 2.0 BEFORE checking
-	 * for null, causing a guaranteed NPE when KDJ is not provided. Fixed by
-	 * returning UNKNOWN immediately when any value is null.
-	 */
 	private KdjZone resolveKdjZone(Double k, Double d, Double j, List<String> confluences, List<String> warnings) {
-		// ── NULL CHECK FIRST — always ──────────────────────────────────
 		if (k == null || d == null || j == null) {
 			warnings.add("⚠️ STEP 4 — KDJ not provided. Oscillator momentum unconfirmed.");
 			return KdjZone.UNKNOWN;
 		}
 		double diff = k - d;
-		boolean accelerating = diff > 2.0; // safe to compute now
-		// ── Extreme values first ───────────────────────────────────────
+		boolean accelerating = diff > 2.0;
 		if (j > 100) {
 			warnings.add(String.format(
 					"🔴 STEP 4 FAIL — KDJ J=%.3f extreme extension (>100). Hard reversal imminent. Skip entry.", j));
@@ -450,7 +409,6 @@ public class CalculationService {
 					k, d, j));
 			return KdjZone.OVERSOLD;
 		}
-		// ── Normal range — K vs D direction is the signal ─────────────
 		if (k > d) {
 			if (j >= 50) {
 				if (accelerating)
@@ -463,34 +421,27 @@ public class CalculationService {
 							k, d, diff, j));
 				return accelerating ? KdjZone.BULLISH_STRONG : KdjZone.BULLISH_WEAK;
 			} else {
-				// K > D but J still below 50 — early golden cross
 				confluences.add(String.format(
 						"🟢 STEP 4 PASS — KDJ Bullish Weak: K=%.3f > D=%.3f J=%.3f — early golden cross, momentum building.",
 						k, d, j));
 				return KdjZone.BULLISH_WEAK;
 			}
 		}
-		// K ≈ D — undecided
 		if (Math.abs(diff) < 2.0) {
 			warnings.add(String.format(
 					"⚪ STEP 4 NEUTRAL — KDJ K=%.3f ≈ D=%.3f gap=%.3f J=%.3f — near cross, watch for direction.", k, d,
 					diff, j));
 			return KdjZone.NEUTRAL;
 		}
-		// K < D — bearish
 		warnings.add(String.format(
 				"🔴 STEP 4 FAIL — KDJ Bearish: K=%.3f < D=%.3f gap=%.3f J=%.3f — downward pressure, avoid entry.", k, d,
 				Math.abs(diff), j));
 		return KdjZone.BEARISH;
 	}
 
-	/**
-	 * BUG FIX: Original version called this with req.getKdjJ() without null guard.
-	 * Now safely skips the check when KDJ is not provided.
-	 */
 	private void checkKdjDivergence(double price, double ma5, Double kdjJ, List<String> warnings) {
 		if (kdjJ == null)
-			return; // guard — was missing in original
+			return;
 		double pctAboveMA5 = (price - ma5) / ma5 * 100;
 		if (pctAboveMA5 > 3.0 && kdjJ < 50) {
 			warnings.add(String.format(
@@ -500,16 +451,12 @@ public class CalculationService {
 		}
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// STEP 5 — MACD (restored — was entirely missing from email version)
-	// ══════════════════════════════════════════════════════════════════
 	private MacdMomentumZone resolveMacdZone(Double dif, Double dea, Double hist, List<String> confluences,
 			List<String> warnings) {
 		if (dif == null || dea == null || hist == null) {
 			warnings.add("⚠️ STEP 5 — MACD (DIF/DEA/Histogram) not provided. Trend momentum unconfirmed.");
 			return MacdMomentumZone.UNKNOWN;
 		}
-		// Near-cross: histogram magnitude tiny regardless of direction
 		if (Math.abs(hist) < 0.0005 && Math.abs(dif - dea) < 0.001) {
 			warnings.add(String.format(
 					"⚠️ STEP 5 WARN — MACD Near Cross: DIF=%.4f DEA=%.4f Hist=%.4f — watch for golden cross breakout.",
@@ -539,13 +486,9 @@ public class CalculationService {
 		return MacdMomentumZone.BEARISH;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// SIGNAL SCORE — updated to include MACD (was missing in email version)
-	// Max = 12 (was 10 in email version — incorrect without MACD)
-	// ══════════════════════════════════════════════════════════════════
 	private SignalScore resolveSignalScore(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, KdjZone kdjZone, MacdMomentumZone macdZone) {
-		int score = 1; // baseline
+		int score = 1;
 		score += switch (priceZone) {
 		case IDEAL -> 2;
 		case ACCEPTABLE -> 1;
@@ -559,7 +502,6 @@ public class CalculationService {
 		case C -> -1;
 		default -> -2;
 		};
-		// RSI optional add-on (±1 only)
 		score += switch (rsiZone) {
 		case IDEAL, STRONG -> 1;
 		case RECOVERING -> 0;
@@ -567,7 +509,6 @@ public class CalculationService {
 		case EXTREME_OB, WEAK -> -1;
 		case UNKNOWN -> 0;
 		};
-		// Volume
 		score += switch (volumeZone) {
 		case SURGE, STRONG -> 2;
 		case ABOVE_AVG -> 1;
@@ -575,7 +516,6 @@ public class CalculationService {
 		case WEAK -> -1;
 		case UNKNOWN -> 0;
 		};
-		// KDJ — primary oscillator (±2)
 		score += switch (kdjZone) {
 		case BULLISH_STRONG -> 2;
 		case BULLISH_WEAK, OVERSOLD -> 1;
@@ -584,7 +524,6 @@ public class CalculationService {
 		case BEARISH -> -2;
 		case UNKNOWN -> 0;
 		};
-		// MACD — trend momentum (±3) ← was missing in email version
 		score += switch (macdZone) {
 		case STRONG_BULL -> 3;
 		case BULL -> 2;
@@ -599,12 +538,8 @@ public class CalculationService {
 		return new SignalScore(clamped, maxScore, grade);
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// RISK LEVEL — includes MACD guard (was missing in email version)
-	// ══════════════════════════════════════════════════════════════════
 	private RiskLevel resolveRiskLevel(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, KdjZone kdjZone, MacdMomentumZone macdZone) {
-		// Hard skips
 		if (trendGrade == TrendGrade.EXHAUSTED || trendGrade == TrendGrade.BEARISH)
 			return RiskLevel.HIGH_SKIP;
 		if (priceZone == PriceZone.OVEREXTENDED)
@@ -615,13 +550,10 @@ public class CalculationService {
 			return RiskLevel.HIGH_SKIP;
 		if (macdZone == MacdMomentumZone.STRONG_BEAR)
 			return RiskLevel.HIGH_SKIP;
-		// Double overbought = hard no (from email version — kept)
 		if (kdjZone == KdjZone.OVERBOUGHT && priceZone == PriceZone.STRETCHED)
 			return RiskLevel.HIGH_SKIP;
-		// Unknown volume → be cautious
 		if (volumeZone == VolumeZone.UNKNOWN)
 			return RiskLevel.MEDIUM_PROCEED;
-		// Medium risk
 		if (priceZone == PriceZone.STRETCHED || trendGrade == TrendGrade.C || trendGrade == TrendGrade.FLAT
 				|| rsiZone == RsiZone.OVERBOUGHT || rsiZone == RsiZone.RECOVERING || volumeZone == VolumeZone.NORMAL
 				|| kdjZone == KdjZone.OVERBOUGHT || kdjZone == KdjZone.NEUTRAL || kdjZone == KdjZone.BEARISH
@@ -630,9 +562,6 @@ public class CalculationService {
 		return RiskLevel.LOW_PROCEED;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// POSITION SIZE — includes MACD
-	// ══════════════════════════════════════════════════════════════════
 	private String resolvePositionSize(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, KdjZone kdjZone, MacdMomentumZone macdZone) {
 		if (kdjZone == KdjZone.OVERBOUGHT && priceZone == PriceZone.STRETCHED)
@@ -665,15 +594,11 @@ public class CalculationService {
 		return "50%";
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// STOP LOSS — using tighter of ATR vs MA-buffer (email version kept Math.max)
-	// ══════════════════════════════════════════════════════════════════
 	private double resolveStopLoss(double price, double ma20, double ma50, TimeframeConfig tf, Double atr,
 			List<String> warnings) {
 		double maSl = round4(Math.max(ma20, ma50) * (1 - tf.slBuffer()));
 		if (atr != null && atr > 0) {
 			double atrSl = round4(price - 1.5 * atr);
-			// Math.max → tighter SL (higher price = closer to entry = smaller risk)
 			double sl = Math.max(atrSl, maSl);
 			warnings.add(String.format("✅ SL: ATR-based=%.4f  MA-based=%.4f  → using tighter (%.4f)", atrSl, maSl, sl));
 			return sl;
@@ -682,9 +607,6 @@ public class CalculationService {
 		return maSl;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// BUILD FILTER STEPS — step numbering corrected (volume = step 6)
-	// ══════════════════════════════════════════════════════════════════
 	private Map<String, Object> buildFilterSteps(PriceZone priceZone, TrendGrade trendGrade, RsiZone rsiZone,
 			VolumeZone volumeZone, KdjZone kdjZone, MacdMomentumZone macdZone, MaCalculationRequest req,
 			double pctAboveMA20, double ma20VsMa50Pct) {
@@ -701,7 +623,6 @@ public class CalculationService {
 						String.format("%.2f%%", ma20VsMa50Pct), "grade", trendGrade.grade, "status",
 						trendGrade == TrendGrade.S_PLUS_PLUS || trendGrade == TrendGrade.A ? "PASS ✅"
 								: trendGrade == TrendGrade.B || trendGrade == TrendGrade.C ? "WARN ⚠️" : "FAIL 🔴"));
-		// Step 4: KDJ
 		steps.put("step4", req.getKdjK() != null
 				? Map.of("name", "KDJ Momentum", "rule", "K>D, J 20–80", "result",
 						String.format("K=%.3f D=%.3f J=%.3f", req.getKdjK(), req.getKdjD(), req.getKdjJ()), "zone",
@@ -712,7 +633,6 @@ public class CalculationService {
 										: kdjZone == KdjZone.NEUTRAL || kdjZone == KdjZone.OVERBOUGHT ? "WARN ⚠️"
 												: "FAIL 🔴")
 				: Map.of("name", "KDJ Momentum", "status", "SKIP ⚪", "note", "Not provided — momentum unconfirmed"));
-		// Step 5: MACD — was labeled step5 but was Volume in email version (bug)
 		steps.put("step5",
 				req.getMacdDif() != null
 						? Map.of("name", "MACD Momentum", "rule", "DIF>DEA, Histogram>0", "result",
@@ -723,7 +643,6 @@ public class CalculationService {
 										: macdZone == MacdMomentumZone.NEAR_CROSS ? "WARN ⚠️" : "FAIL 🔴")
 						: Map.of("name", "MACD Momentum", "status", "SKIP ⚪", "note",
 								"Not provided — trend momentum unconfirmed"));
-		// Step 6: Volume
 		steps.put("step6",
 				req.getVolumeRatio() != null
 						? Map.of("name", "Volume Conviction", "rule", "ratio > 1.2×", "result",
@@ -736,9 +655,6 @@ public class CalculationService {
 		return steps;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// TRADE PLAN — includes queueNote referencing planner
-	// ══════════════════════════════════════════════════════════════════
 	private Map<String, Object> buildTradePlan(double price, double ma5, double ma20, double ma50, TimeframeConfig tf,
 			double entryIdeal, double entryMax, double stopLoss, double risk_R, double tp1, double tp2, double tp3,
 			Double atr, HoldCalculation hold) {
@@ -767,9 +683,6 @@ public class CalculationService {
 		return plan;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// TREND DISTANCE (unchanged — legacy signal score)
-	// ══════════════════════════════════════════════════════════════════
 	public Map<String, Object> trendDistance(TrendDistanceRequest req) {
 		double price = req.getMarketPrice();
 		double ma20 = req.getMa20();
@@ -815,9 +728,6 @@ public class CalculationService {
 		return resp;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// SHARED RESOLVERS
-	// ══════════════════════════════════════════════════════════════════
 	private void resolveStep2(PriceZone zone, double pct, double ma20, List<String> confluences,
 			List<String> warnings) {
 		switch (zone) {
@@ -1066,9 +976,6 @@ public class CalculationService {
 						: "Grade A/B: give full " + range.max() + " days before cutting");
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// SMALLER BUILD HELPERS
-	// ══════════════════════════════════════════════════════════════════
 	private Map<String, Object> buildInput(MaCalculationRequest req, TimeframeConfig tf) {
 		Map<String, Object> input = new LinkedHashMap<>();
 		input.put("marketPrice", req.getMarketPrice());
@@ -1223,9 +1130,6 @@ public class CalculationService {
 		return g;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// ZONE / GRADE RESOLVERS
-	// ══════════════════════════════════════════════════════════════════
 	private PriceZone resolvePriceZone(double pct) {
 		if (pct < 0)
 			return PriceZone.BELOW_MA20;
@@ -1265,5 +1169,4 @@ public class CalculationService {
 	private double round0(double v) {
 		return Math.round(v);
 	}
-
 }

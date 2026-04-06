@@ -48,9 +48,6 @@ public class ScannerService {
 		this.scanRepo = scanRepo;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// RANGE SCAN
-	// ══════════════════════════════════════════════════════════════════
 	public List<ScanResult> scanByPriceRange(Market market, double minPrice, double maxPrice, double minScore,
 			String exchange) {
 		LocalDateTime start = LocalDateTime.now(market.zoneId);
@@ -77,14 +74,13 @@ public class ScannerService {
 		int total = candidates.size();
 		List<Future<Optional<ScanResult>>> futures = new ArrayList<>();
 		for (StockCandidate c : candidates) {
-			// ── Fast skip: already IGNORE today (no re-analysis needed) ──
 			Optional<ScanResult> cached = scanRepo.findTopByMarketAndStockCodeOrderByScannedAtDesc(market, c.code());
 			if (cached.isPresent() && cached.get().getScanDate().equals(today)
 					&& "IGNORE".equals(cached.get().getDecision())) {
 				ignCount.incrementAndGet();
 				skippedCache.incrementAndGet();
 				done.incrementAndGet();
-				log.debug("[{}] ⏭ SKIP cached IGNORE", c.code());
+				log.info("[{}] ⏭ SKIP cached IGNORE", c.code());
 				continue;
 			}
 			futures.add(pool.submit(() -> {
@@ -132,7 +128,6 @@ public class ScannerService {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
-		// ── Collect all results ────────────────────────────────────────
 		List<ScanResult> all = futures.stream().map(f -> {
 			try {
 				return f.get();
@@ -140,32 +135,20 @@ public class ScannerService {
 				return Optional.<ScanResult>empty();
 			}
 		}).filter(Optional::isPresent).map(Optional::get)
-				// Composite rank: score × 0.5 + volume × 15 + MACD depth × 500 + ATR bonus
 				.sorted(Comparator.comparingDouble((ScanResult r) -> compositeRank(r)).reversed())
 				.collect(Collectors.toList());
 		logSummary(market, all, minPrice, maxPrice, minScore, noDataCount.get(), failCount.get(), skippedCache.get(),
 				start);
-		// Return only BUY signals at or above minScore threshold
 		return all.stream().filter(r -> "BUY".equals(r.getDecision()) && r.getScore() >= minScore)
 				.collect(Collectors.toList());
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// COMPOSITE RANK (replaces score-only sort)
-	// ══════════════════════════════════════════════════════════════════
-	/**
-	 * Weighted composite rank used to sort results. Weights: score (50%) + volume
-	 * (15pts/×) + MACD depth (500pts) + ATR bonus (10pts if ≥ 1.5%) This mirrors
-	 * how a professional would prioritise: high score with volume + momentum depth
-	 * beats a high score with weak volume.
-	 */
 	private double compositeRank(ScanResult r) {
 		double rank = r.getScore() * 0.5;
 		rank += r.getVolumeRatio() * 15.0;
 		rank += r.getMacdDepth() * 500.0;
 		if (r.getAtrPct() >= 1.5)
-			rank += 10.0; // volatility = moves fast enough to TP
-		// Confidence bonus
+			rank += 10.0;
 		rank += switch (r.getConfidence() != null ? r.getConfidence() : "C") {
 		case "A" -> 20.0;
 		case "B" -> 10.0;
@@ -174,9 +157,6 @@ public class ScannerService {
 		return rank;
 	}
 
-	// ══════════════════════════════════════════════════════════════════
-	// LOGGING
-	// ══════════════════════════════════════════════════════════════════
 	private void logHeader(Market market, double min, double max, double minScore, String exch, LocalDateTime t) {
 		log.info("══════════════════════════════════════════════════════════════════");
 		log.info("  {} SCAN | {} — {} | {} | minScore:{}", market, market.formatPrice(min), market.formatPrice(max),

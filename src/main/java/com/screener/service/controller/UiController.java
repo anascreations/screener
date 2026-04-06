@@ -171,44 +171,43 @@ public class UiController {
 	}
 
 	@PostMapping("ema/calculation")
-	public String emaCalculation(@ModelAttribute @Valid EmaCalculationRequest request,
-	        BindingResult binding, Model model) {
-	    model.addAttribute("activeTab", "ema-calc");
-	    model.addAttribute("market", request.getMarket());
-	    model.addAttribute("timeframe", request.getTimeframe());
-	    model.addAttribute("marketPrice", request.getMarketPrice());
-	    model.addAttribute("ema8", request.getEma8());
-	    model.addAttribute("ema21", request.getEma21());
-	    model.addAttribute("ema55", request.getEma55());
-	    model.addAttribute("rsi14", request.getRsi14());
-	    model.addAttribute("atr14", request.getAtr14());
-	    model.addAttribute("volumeRatio", request.getVolumeRatio());
-	    // KDJ
-	    model.addAttribute("kdjK", request.getKdjK());
-	    model.addAttribute("kdjD", request.getKdjD());
-	    model.addAttribute("kdjJ", request.getKdjJ());
-	    // MACD
-	    model.addAttribute("macdDif", request.getMacdDif());
-	    model.addAttribute("macdDea", request.getMacdDea());
-	    model.addAttribute("macdHistogram", request.getMacdHistogram());
-	    // ── NEW: Price Context ──────────────────────────────────────
-	    model.addAttribute("openPrice", request.getOpenPrice());
-	    model.addAttribute("prevClose", request.getPrevClose());
-	    model.addAttribute("dayHigh", request.getDayHigh());
-	    model.addAttribute("dayLow", request.getDayLow());
-	    model.addAttribute("wk52High", request.getWk52High());
-	    model.addAttribute("wk52Low", request.getWk52Low());
-	    model.addAttribute("beta", request.getBeta());
-	    model.addAttribute("bidAskRatio", request.getBidAskRatio());
-
-	    if (!binding.hasErrors()) {
-	        try {
-	            model.addAttribute("result", screenerClient.emaCalculation(request.getMarket(), request));
-	        } catch (WebClientResponseException e) {
-	            model.addAttribute("result", parseErrorBody(e));
-	        }
-	    }
-	    return INDEX;
+	public String emaCalculation(@ModelAttribute @Valid EmaCalculationRequest request, BindingResult binding,
+			Model model) {
+		model.addAttribute("activeTab", "ema-calc");
+		model.addAttribute("market", request.getMarket());
+		model.addAttribute("timeframe", request.getTimeframe());
+		model.addAttribute("marketPrice", request.getMarketPrice());
+		model.addAttribute("ema8", request.getEma8());
+		model.addAttribute("ema21", request.getEma21());
+		model.addAttribute("ema55", request.getEma55());
+		model.addAttribute("rsi14", request.getRsi14());
+		model.addAttribute("atr14", request.getAtr14());
+		model.addAttribute("volumeRatio", request.getVolumeRatio());
+		// KDJ
+		model.addAttribute("kdjK", request.getKdjK());
+		model.addAttribute("kdjD", request.getKdjD());
+		model.addAttribute("kdjJ", request.getKdjJ());
+		// MACD
+		model.addAttribute("macdDif", request.getMacdDif());
+		model.addAttribute("macdDea", request.getMacdDea());
+		model.addAttribute("macdHistogram", request.getMacdHistogram());
+		// ── NEW: Price Context ──────────────────────────────────────
+		model.addAttribute("openPrice", request.getOpenPrice());
+		model.addAttribute("prevClose", request.getPrevClose());
+		model.addAttribute("dayHigh", request.getDayHigh());
+		model.addAttribute("dayLow", request.getDayLow());
+		model.addAttribute("wk52High", request.getWk52High());
+		model.addAttribute("wk52Low", request.getWk52Low());
+		model.addAttribute("beta", request.getBeta());
+		model.addAttribute("bidAskRatio", request.getBidAskRatio());
+		if (!binding.hasErrors()) {
+			try {
+				model.addAttribute("result", screenerClient.emaCalculation(request.getMarket(), request));
+			} catch (WebClientResponseException e) {
+				model.addAttribute("result", parseErrorBody(e));
+			}
+		}
+		return INDEX;
 	}
 
 	@PostMapping("ma/trend-distance")

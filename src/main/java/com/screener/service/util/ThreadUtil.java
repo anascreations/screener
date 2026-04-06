@@ -44,7 +44,7 @@ public class ThreadUtil {
 		long capped = Math.min(backoff, maxMs);
 		long jitter = ThreadLocalRandom.current().nextLong(Math.max(1, capped / 4));
 		long actual = capped + jitter;
-		log.debug("[Thread] Backoff attempt={} sleeping={}ms (base={}ms, max={}ms)", attempt, actual, baseMs, maxMs);
+		log.info("[Thread] Backoff attempt={} sleeping={}ms (base={}ms, max={}ms)", attempt, actual, baseMs, maxMs);
 		sleep(actual);
 	}
 

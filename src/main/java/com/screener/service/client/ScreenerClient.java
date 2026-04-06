@@ -60,5 +60,4 @@ public interface ScreenerClient {
 
 	@PostExchange(value = "{market}/level2/analyze-image", contentType = MediaType.MULTIPART_FORM_DATA_VALUE)
 	Map<String, Object> level2Image(@PathVariable String market, @RequestPart("image") MultipartFile image);
-
 }

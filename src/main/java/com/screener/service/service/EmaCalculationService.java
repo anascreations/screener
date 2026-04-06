@@ -11,34 +11,26 @@ import com.screener.service.dto.EmaCalculationRequest;
 
 @Service
 public class EmaCalculationService {
-
 	public Map<String, Object> emaCalculate(EmaCalculationRequest req) {
 		Map<String, Object> result = new LinkedHashMap<>();
-
 		try {
 			double price = req.getMarketPrice();
 			double ema8 = req.getEma8();
 			double ema21 = req.getEma21();
 			double ema55 = req.getEma55();
 			String tf = req.getTimeframe() != null ? req.getTimeframe() : "DAILY";
-
 			double pctAboveEMA8 = pct(price, ema8);
 			double pctAboveEMA21 = pct(price, ema21);
 			double pctAboveEMA55 = pct(price, ema55);
 			double ema8AboveEMA21 = pct(ema8, ema21);
 			double ema21AboveEMA55 = pct(ema21, ema55);
-
 			boolean priceAboveEMA8 = price > ema8;
 			boolean priceAboveEMA21 = price > ema21;
 			boolean priceAboveEMA55 = price > ema55;
 			boolean ema8AboveEMA21b = ema8 > ema21;
 			boolean ema21AboveEMA55b = ema21 > ema55;
 			boolean fullBullStack = priceAboveEMA8 && ema8AboveEMA21b && ema21AboveEMA55b;
-
-			// ── Filter steps (ordered map = display order) ───────────────────
 			Map<String, Map<String, String>> filterSteps = new LinkedHashMap<>();
-
-			// F1 — Price vs EMA8 (momentum gate)
 			Map<String, String> f1 = new LinkedHashMap<>();
 			f1.put("name", "F1 — Price vs EMA8 (Momentum Gate)");
 			f1.put("rule", "Price must be above EMA8 and within 10%");
@@ -60,8 +52,6 @@ public class EmaCalculationService {
 				f1.put("result", f1Result);
 			}
 			filterSteps.put("F1", f1);
-
-			// F2 — EMA8 vs EMA21 (short-term trend direction)
 			Map<String, String> f2 = new LinkedHashMap<>();
 			f2.put("name", "F2 — EMA8 vs EMA21 (Short-Term Trend)");
 			f2.put("rule", "EMA8 must be above EMA21");
@@ -77,8 +67,6 @@ public class EmaCalculationService {
 				f2.put("result", f2Result);
 			}
 			filterSteps.put("F2", f2);
-
-			// F3 — EMA21 vs EMA55 (trend maturity)
 			Map<String, String> f3 = new LinkedHashMap<>();
 			f3.put("name", "F3 — EMA21 vs EMA55 (Trend Maturity)");
 			f3.put("rule", "EMA21 > EMA55; gap 1–5% is optimal");
@@ -90,8 +78,6 @@ public class EmaCalculationService {
 					: (ema21AboveEMA55b ? "PASS — Exhausted (reduce)" : "FAIL — Bearish"));
 			f3.put("result", f3Result);
 			filterSteps.put("F3", f3);
-
-			// F4 — KDJ
 			String kdjZone = null, kdjEmoji = null, kdjMeaning = null;
 			if (req.hasKdj()) {
 				double k = req.getKdjK(), d = req.getKdjD(), j = req.getKdjJ();
@@ -110,8 +96,6 @@ public class EmaCalculationService {
 				result.put("kdjEmoji", kdjEmoji);
 				result.put("kdjMeaning", kdjMeaning);
 			}
-
-			// F5 — MACD
 			String macdZone = null, macdEmoji = null, macdMeaning = null;
 			if (req.hasMacd()) {
 				double dif = req.getMacdDif(), dea = req.getMacdDea();
@@ -130,8 +114,6 @@ public class EmaCalculationService {
 				result.put("macdEmoji", macdEmoji);
 				result.put("macdMeaning", macdMeaning);
 			}
-
-			// F5b — Volume
 			String volumeZone = null;
 			if (req.hasVolume()) {
 				double vr = req.getVolumeRatio();
@@ -145,10 +127,7 @@ public class EmaCalculationService {
 				filterSteps.put("F5b", f5b);
 				result.put("volumeZone", volumeZone);
 			}
-
 			result.put("filterSteps", filterSteps);
-
-			// ── Scoring & Decision ───────────────────────────────────────────
 			int score = 0;
 			if (priceAboveEMA8 && pctAboveEMA8 <= 10)
 				score += 25;
@@ -162,8 +141,6 @@ public class EmaCalculationService {
 				score += 10;
 			if (req.hasVolume() && req.getVolumeRatio() >= 1.5)
 				score += 5;
-
-			// Stack grade (based on alignment quality)
 			String stackGrade, stackEmoji;
 			if (fullBullStack && pctAboveEMA8 <= 2 && ema21AboveEMA55 <= 5) {
 				stackGrade = "S++";
@@ -181,10 +158,7 @@ public class EmaCalculationService {
 				stackGrade = "X";
 				stackEmoji = "🛑";
 			}
-
-			// Hard SKIP conditions
 			boolean hardSkip = !priceAboveEMA8 && pctAboveEMA8 < -2.0 || (!ema8AboveEMA21b && !ema21AboveEMA55b);
-
 			String decision, riskLevel, positionSize;
 			if (hardSkip || stackGrade.equals("X")) {
 				decision = "SKIP";
@@ -207,7 +181,6 @@ public class EmaCalculationService {
 				riskLevel = "High Risk";
 				positionSize = "0% — SKIP";
 			}
-
 			result.put("decision", decision);
 			result.put("riskLevel", riskLevel);
 			result.put("positionSize", positionSize);
@@ -215,23 +188,15 @@ public class EmaCalculationService {
 			result.put("stackEmoji", stackEmoji);
 			result.put("signalScore", score);
 			result.put("trendGrade", trendGrade);
-
-			// ── Advice text ──────────────────────────────────────────────────
 			result.put("advice", buildAdvice(decision, stackGrade, trendGrade, pctAboveEMA8, ema8AboveEMA21b,
 					ema21AboveEMA55b, positionSize));
 			if (decision.equals("SKIP")) {
 				result.put("reason", buildSkipReason(priceAboveEMA8, ema8AboveEMA21b, ema21AboveEMA55b, pctAboveEMA8));
 			}
-
-			// ── RSI zone ────────────────────────────────────────────────────
 			if (req.hasRsi()) {
 				result.put("rsiZone", classifyRsi(req.getRsi14()));
 			}
-
-			// ── Momentum zone (F1) ───────────────────────────────────────────
 			result.put("momentumZone", momentumZone(pctAboveEMA8, priceAboveEMA8));
-
-			// ── EMA Alignment block ──────────────────────────────────────────
 			Map<String, Object> emaAlignment = new LinkedHashMap<>();
 			emaAlignment.put("priceAboveEMA8", priceAboveEMA8);
 			emaAlignment.put("priceAboveEMA21", priceAboveEMA21);
@@ -242,8 +207,6 @@ public class EmaCalculationService {
 			emaAlignment.put("trend",
 					buildTrendDescription(priceAboveEMA8, ema8AboveEMA21b, ema21AboveEMA55b, fullBullStack));
 			result.put("emaAlignment", emaAlignment);
-
-			// ── Calculation block ────────────────────────────────────────────
 			Map<String, Object> calc = new LinkedHashMap<>();
 			calc.put("pctAboveEMA8", fmt2(pctAboveEMA8) + "%");
 			calc.put("pctAboveEMA21", fmt2(pctAboveEMA21) + "%");
@@ -253,23 +216,16 @@ public class EmaCalculationService {
 			calc.put("momentumResult", buildMomentumResult(pctAboveEMA8, priceAboveEMA8));
 			calc.put("thresholds", "Zones: ≤2% Ideal · 2–5% OK · 5–10% Stretched · >10% Skip");
 			result.put("calculation", calc);
-
-			// ── Trend Maturity block (EMA21 vs EMA55) ───────────────────────
 			Map<String, Object> trendMaturity = new LinkedHashMap<>();
 			trendMaturity.put("result", fmt2(ema21AboveEMA55) + "%");
 			trendMaturity.put("grade", trendGrade);
 			trendMaturity.put("emoji", trendEmoji);
 			trendMaturity.put("meaning", trendGradeMeaning(trendGrade));
 			result.put("trendMaturity", trendMaturity);
-
-			// ── Hold duration (timeframe-based) ─────────────────────────────
 			Map<String, Object> holdDays = holdDuration(tf, stackGrade);
 			result.put("holdDays", holdDays);
-
-			// ── Confluences & Warnings ───────────────────────────────────────
 			List<String> confluences = new ArrayList<>();
 			List<String> warnings = new ArrayList<>();
-
 			if (fullBullStack)
 				confluences.add("✅ Full EMA Bull Stack (Price > EMA8 > EMA21 > EMA55)");
 			if (pctAboveEMA8 <= 2)
@@ -284,7 +240,6 @@ public class EmaCalculationService {
 				confluences.add("🔥 Volume surge ≥ 2.0x");
 			if (req.hasRsi() && req.getRsi14() >= 50 && req.getRsi14() <= 70)
 				confluences.add("✅ RSI in healthy range (50–70)");
-
 			if (!priceAboveEMA8)
 				warnings.add("⛔ Price below EMA8 — no momentum");
 			if (!ema8AboveEMA21b)
@@ -305,84 +260,73 @@ public class EmaCalculationService {
 				warnings.add("🟡 RSI overbought (>75)");
 			if (req.hasRsi() && req.getRsi14() < 40)
 				warnings.add("🔴 RSI bearish (<40)");
-
-			// ── Beta warnings ────────────────────────────────────────────────
 			if (req.hasBeta()) {
-			    double b = req.getBeta();
-			    if (b > 2.0) {
-			        warnings.add("🔴 Beta " + fmt2(b) + " — extremely volatile, cut position to 25%");
-			        if (score > 0) score = (int)(score * 0.75); // penalise score
-			    } else if (b > 1.5) {
-			        warnings.add("🟡 Beta " + fmt2(b) + " — high volatility, reduce position size");
-			    } else if (b < 0.5) {
-			        confluences.add("🟢 Low Beta (" + fmt2(b) + ") — stable, lower risk");
-			    }
-			    result.put("betaNote", classifyBeta(b));
+				double b = req.getBeta();
+				if (b > 2.0) {
+					warnings.add("🔴 Beta " + fmt2(b) + " — extremely volatile, cut position to 25%");
+					if (score > 0)
+						score = (int) (score * 0.75); // penalise score
+				} else if (b > 1.5) {
+					warnings.add("🟡 Beta " + fmt2(b) + " — high volatility, reduce position size");
+				} else if (b < 0.5) {
+					confluences.add("🟢 Low Beta (" + fmt2(b) + ") — stable, lower risk");
+				}
+				result.put("betaNote", classifyBeta(b));
 			}
-
-			// ── Bid/Ask pressure ─────────────────────────────────────────────
 			if (req.hasBidAsk()) {
-			    double ba = req.getBidAskRatio();
-			    String baZone = classifyBidAsk(ba);
-			    result.put("bidAskZone", baZone);
-			    if (ba >= 65) {
-			        confluences.add("💪 Bid/Ask " + fmt2(ba) + "% — strong buyer dominance");
-			        score += 3;
-			    } else if (ba >= 50) {
-			        confluences.add("🟢 Bid/Ask " + fmt2(ba) + "% — buyers in control");
-			    } else if (ba < 35) {
-			        warnings.add("🔴 Bid/Ask " + fmt2(ba) + "% — sellers dominating, weak demand");
-			    }
+				double ba = req.getBidAskRatio();
+				String baZone = classifyBidAsk(ba);
+				result.put("bidAskZone", baZone);
+				if (ba >= 65) {
+					confluences.add("💪 Bid/Ask " + fmt2(ba) + "% — strong buyer dominance");
+					score += 3;
+				} else if (ba >= 50) {
+					confluences.add("🟢 Bid/Ask " + fmt2(ba) + "% — buyers in control");
+				} else if (ba < 35) {
+					warnings.add("🔴 Bid/Ask " + fmt2(ba) + "% — sellers dominating, weak demand");
+				}
 			}
-
-			// ── 52-week context ──────────────────────────────────────────────
 			if (req.has52Week()) {
-			    double fromHigh = pct(price, req.getWk52High());
-			    double fromLow  = pct(price, req.getWk52Low());
-			    result.put("pctFrom52wkHigh", fmt2(fromHigh) + "%");
-			    result.put("pctFrom52wkLow",  fmt2(fromLow)  + "%");
-			    if (fromHigh >= -5) {
-			        warnings.add("⚠️ Price within 5% of 52wk high — breakout or rejection risk");
-			    }
-			    if (fromLow < 10) {
-			        warnings.add("⛔ Price near 52wk low — weak structure, avoid long");
-			    }
-			    if (fromLow >= 20 && fromHigh <= -10) {
-			        confluences.add("📐 52wk position healthy — recovery zone (" + fmt2(fromLow) + "% from low)");
-			    }
+				double fromHigh = pct(price, req.getWk52High());
+				double fromLow = pct(price, req.getWk52Low());
+				result.put("pctFrom52wkHigh", fmt2(fromHigh) + "%");
+				result.put("pctFrom52wkLow", fmt2(fromLow) + "%");
+				if (fromHigh >= -5) {
+					warnings.add("⚠️ Price within 5% of 52wk high — breakout or rejection risk");
+				}
+				if (fromLow < 10) {
+					warnings.add("⛔ Price near 52wk low — weak structure, avoid long");
+				}
+				if (fromLow >= 20 && fromHigh <= -10) {
+					confluences.add("📐 52wk position healthy — recovery zone (" + fmt2(fromLow) + "% from low)");
+				}
 			}
-
-			// ── Day range & gap context ──────────────────────────────────────
 			if (req.hasOhlc()) {
-			    double h = req.getDayHigh(), l = req.getDayLow();
-			    double rangePct = pct(h, l);
-			    double posInRange = (h > l) ? ((price - l) / (h - l) * 100) : 0;
-			    result.put("dayRangePct", fmt2(rangePct) + "%");
-			    result.put("positionInRange", fmt2(posInRange) + "%");
-			    if (posInRange >= 75) {
-			        confluences.add("🔝 Price in upper 25% of day range — strong intraday momentum");
-			    } else if (posInRange <= 25) {
-			        warnings.add("🔻 Price in lower 25% of day range — weak intraday close");
-			    }
+				double h = req.getDayHigh(), l = req.getDayLow();
+				double rangePct = pct(h, l);
+				double posInRange = (h > l) ? ((price - l) / (h - l) * 100) : 0;
+				result.put("dayRangePct", fmt2(rangePct) + "%");
+				result.put("positionInRange", fmt2(posInRange) + "%");
+				if (posInRange >= 75) {
+					confluences.add("🔝 Price in upper 25% of day range — strong intraday momentum");
+				} else if (posInRange <= 25) {
+					warnings.add("🔻 Price in lower 25% of day range — weak intraday close");
+				}
 			}
 			if (req.hasPrevClose() && req.getPrevClose() > 0) {
-			    double chgPct = pct(price, req.getPrevClose());
-			    result.put("pctChangeDay", fmt2(chgPct) + "%");
-			    if (chgPct >= 5) {
-			        confluences.add("🚀 Strong day gain +" + fmt2(chgPct) + "% — momentum confirmed");
-			    } else if (chgPct <= -3) {
-			        warnings.add("🔴 Day decline " + fmt2(chgPct) + "% — bearish session");
-			    }
+				double chgPct = pct(price, req.getPrevClose());
+				result.put("pctChangeDay", fmt2(chgPct) + "%");
+				if (chgPct >= 5) {
+					confluences.add("🚀 Strong day gain +" + fmt2(chgPct) + "% — momentum confirmed");
+				} else if (chgPct <= -3) {
+					warnings.add("🔴 Day decline " + fmt2(chgPct) + "% — bearish session");
+				}
 			}
-			
 			result.put("confluences", confluences);
 			result.put("warnings", warnings);
-
-			// ── Trade Plan ───────────────────────────────────────────────────
 			if (!decision.equals("SKIP")) {
 				result.put("tradePlan", buildTradePlan(price, ema8, ema21, req, tf, stackGrade));
 			}
-
 			Map<String, Object> input = new LinkedHashMap<>();
 			input.put("marketPrice", fmt4(price));
 			input.put("ema8", fmt4(ema8));
@@ -396,32 +340,39 @@ public class EmaCalculationService {
 			if (req.hasMacd())
 				input.put("macd", "DIF=" + fmt3(req.getMacdDif()) + " DEA=" + fmt3(req.getMacdDea()));
 			result.put("input", input);
-
 		} catch (Exception e) {
 			result.put("error", "Calculation failed: " + e.getMessage());
 		}
-
 		return result;
 	}
+
 	private String classifyBeta(double beta) {
-	    if (beta > 2.0) return "🔴 Very High (" + fmt2(beta) + ") — extreme volatility, 25% max size";
-	    if (beta > 1.5) return "🟡 High (" + fmt2(beta) + ") — reduce position size";
-	    if (beta > 1.0) return "⚠️ Above market (" + fmt2(beta) + ") — normal caution";
-	    if (beta > 0.5) return "✅ Normal (" + fmt2(beta) + ") — standard sizing";
-	    return "🟢 Low (" + fmt2(beta) + ") — stable stock";
+		if (beta > 2.0)
+			return "🔴 Very High (" + fmt2(beta) + ") — extreme volatility, 25% max size";
+		if (beta > 1.5)
+			return "🟡 High (" + fmt2(beta) + ") — reduce position size";
+		if (beta > 1.0)
+			return "⚠️ Above market (" + fmt2(beta) + ") — normal caution";
+		if (beta > 0.5)
+			return "✅ Normal (" + fmt2(beta) + ") — standard sizing";
+		return "🟢 Low (" + fmt2(beta) + ") — stable stock";
 	}
 
 	private String classifyBidAsk(double ratio) {
-	    if (ratio >= 70) return "💪 Strong demand (≥70%) — buyers dominating";
-	    if (ratio >= 55) return "🟢 Buyers in control (55–70%)";
-	    if (ratio >= 45) return "↔ Balanced market (45–55%)";
-	    if (ratio >= 35) return "🟡 Mild selling pressure (35–45%)";
-	    return "🔴 Sellers dominating (<35%) — avoid entry";
+		if (ratio >= 70)
+			return "💪 Strong demand (≥70%) — buyers dominating";
+		if (ratio >= 55)
+			return "🟢 Buyers in control (55–70%)";
+		if (ratio >= 45)
+			return "↔ Balanced market (45–55%)";
+		if (ratio >= 35)
+			return "🟡 Mild selling pressure (35–45%)";
+		return "🔴 Sellers dominating (<35%) — avoid entry";
 	}
 
 	private String calcTrendGrade(double pctGap) {
 		if (pctGap < 0)
-			return "X"; // bearish
+			return "X";
 		if (pctGap < 1.0)
 			return "FLAT";
 		if (pctGap < 3.0)
@@ -472,7 +423,6 @@ public class EmaCalculationService {
 		return new String[] { "Bullish Building (K>D, J≤50)", "🟢", "Bullish momentum building" };
 	}
 
-	/** MACD: returns [zone, emoji, meaning] */
 	private String[] classifyMacd(double dif, double dea) {
 		if (dif > dea && dea > 0)
 			return new String[] { "Strong Bull (DIF>DEA>0)", "🚀", "Both lines above zero — strongest bull" };
@@ -533,20 +483,15 @@ public class EmaCalculationService {
 	private Map<String, Object> buildTradePlan(double price, double ema8, double ema21, EmaCalculationRequest req,
 			String tf, String stackGrade) {
 		Map<String, Object> tp = new LinkedHashMap<>();
-
 		double atr = req.hasAtr() ? req.getAtr14() : price * 0.015;
-
 		double entryIdeal = ema8;
-		double entryMax = price * 1.02; 
-		double stopLoss = ema21 - atr; 
-
+		double entryMax = price * 1.02;
+		double stopLoss = ema21 - atr;
 		double risk = entryIdeal - stopLoss;
 		double tp1 = entryIdeal + risk * 1.0;
 		double tp2 = entryIdeal + risk * 2.0;
 		double tp3 = entryIdeal + risk * 3.5;
-
 		int decimals = isMy(req.getMarket()) ? 3 : 2;
-
 		tp.put("entryIdeal", fmtD(entryIdeal, decimals));
 		tp.put("entryMax", fmtD(entryMax, decimals));
 		tp.put("entryNote", "Queue at EMA8 for best R:R");
@@ -555,12 +500,10 @@ public class EmaCalculationService {
 		tp.put("tp1", fmtD(tp1, decimals));
 		tp.put("tp2", fmtD(tp2, decimals));
 		tp.put("tp3", fmtD(tp3, decimals));
-
 		Map<String, Object> hd = holdDuration(tf, stackGrade);
 		tp.put("holdDuration", hd.get("label"));
 		tp.put("targetDay", hd.get("targetDays"));
 		tp.put("exitRule", hd.get("exitRule"));
-
 		return tp;
 	}
 

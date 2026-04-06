@@ -47,7 +47,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<Void> handleNoStaticResource(NoResourceFoundException ex) {
-		log.debug("[Static] Resource not found: {}", ex.getResourcePath());
+		log.info("[Static] Resource not found: {}", ex.getResourcePath());
 		return ResponseEntity.notFound().build();
 	}
 

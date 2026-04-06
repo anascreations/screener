@@ -574,7 +574,7 @@ public class FundamentalService {
 				log.warn("[FUND] {} API error: {} — {}", ticker, code, desc);
 				return null;
 			}
-			log.debug("[FUND] {} fetched OK (attempt {})", ticker, attempt);
+			log.info("[FUND] {} fetched OK (attempt {})", ticker, attempt);
 			return root;
 		}
 		log.error("[FUND] {} — all {} attempts failed", ticker, MAX_RETRIES);
